@@ -30,5 +30,13 @@
     "build_script": "build.sh",
     "test_script": "test.sh",
     "build_command": "make -j20 CFLAGS='-fPIC -fPIE -Wno-error' CXXFLAGS='-fPIC -fPIE -Wno-error' LDFLAGS='-pie' src/make-prime-list",
-    "bug_type": "Buffer Overflow"
+    "bug_type": "Buffer Overflow",
+    "predefined_fix_locations": [
+      {
+        "file_name": "src/make-prime-list.c",
+        "fix_line": 214,
+        "start_line": 171,
+        "end_line": 227
+      }
+    ]
 }

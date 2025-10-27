@@ -50,5 +50,13 @@
     "build_script": "build.sh",
     "test_script": "test.sh",
     "build_command": "make -j20 CFLAGS='-Wno-error' CXXFLAGS='-Wno-error' src/pr",
-    "bug_type": "Buffer Overflow"
+    "bug_type": "Buffer Overflow",
+    "predefined_fix_locations": [
+      {
+        "file_name": "src/pr.c",
+        "fix_line": 1236,
+        "start_line": 1190,
+        "end_line": 1298
+      }
+    ]
 }

@@ -35,5 +35,13 @@
     "build_script": "build.sh",
     "test_script": "test.sh",
     "build_command": "make -j20 CFLAGS='-Wno-error' CXXFLAGS='-Wno-error' src/split",
-    "bug_type": "Integer Overflow"
+    "bug_type": "Integer Overflow",
+    "predefined_fix_locations": [
+      {
+        "file_name": "src/split.c",
+        "fix_line": 985,
+        "start_line": 973,
+        "end_line": 1019
+      }
+    ]
 }

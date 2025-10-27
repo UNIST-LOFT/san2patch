@@ -48,5 +48,13 @@
     "build_script": "build.sh",
     "test_script": "test.sh",
     "build_command": "make -j20 CFLAGS='-Wno-error' CXXFLAGS='-Wno-error' src/shred",
-    "bug_type": "Integer Overflow"
+    "bug_type": "Integer Overflow",
+    "predefined_fix_locations": [
+      {
+        "file_name": "src/shred.c",
+        "fix_line":  290,
+        "start_line": 280,
+        "end_line": 299
+      }
+    ]
 }
