@@ -72,6 +72,39 @@ def generate_wheretofix_graph(
     logger = San2PatchLogger().logger
 
     def get_fix_location_candidates(state: WhereToFixState):
+        logger = San2PatchLogger().logger  
+        if hasattr(state, 'predefined_fix_locations') and state.predefined_fix_locations:  
+            logger.info("=" * 80)  
+            logger.info("Using predefined fix locations (skipping LLM-based location detection)")  
+            logger.info(f"Number of predefined locations: {len(state.predefined_fix_locations)}")  
+              
+            for idx, loc_data in enumerate(state.predefined_fix_locations):  
+                logger.info(f"  Location {idx + 1}:")  
+                logger.info(f"    - File: {loc_data['file_name']}")  
+                logger.info(f"    - Fix line: {loc_data['fix_line']}")  
+                logger.info(f"    - Range: {loc_data['start_line']}-{loc_data['end_line']}")  
+                  
+                fix_location = FixLocationState()  
+                fix_location.locations.append(  
+                    LocationState(  
+                        file_name=loc_data['file_name'],  
+                        fix_line=loc_data['fix_line'],  
+                        start_line=loc_data['start_line'],  
+                        end_line=loc_data['end_line'],  
+                        code=get_code_line(  
+                            loc_data['file_name'],  
+                            loc_data['fix_line'],  
+                            loc_data['fix_line'],  
+                            state.package_location,  
+                        ),  
+                    )  
+                )  
+                fix_location.rationale = loc_data.get('rationale', 'User-specified location')  
+                state.fix_location_candidates.append(fix_location)  
+              
+            logger.info("=" * 80)  
+            return
+        logger.info("Using LLM-based location detection (no predefined locations)")  
         crash_stack_trace_bak = state.crash_stack_trace.copy()
         memory_allocate_stack_trace_bak = state.memory_allocate_stack_trace.copy()
         memory_free_stack_trace_bak = state.memory_free_stack_trace.copy()

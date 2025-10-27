@@ -79,7 +79,8 @@ class WhereToFixState(
     LocationCandidatesState,
     WhereToFixBranchState,
     WhereToFixFinalState,
-): ...
+): 
+    predefined_fix_locations: Annotated[list[dict] | None, fixed_value] = None
 
 
 # Input
@@ -131,6 +132,7 @@ def generate_wheretofix_graph(
     logger = San2PatchLogger().logger
 
     def prepare_candidates(state: WhereToFixState, thread: list[BaseMessage]):
+        return
         for trace in state.crash_stack_trace:
             state.location_candidates.append(
                 LocationCandidateState(**trace.model_dump(), type="crash")
@@ -147,6 +149,28 @@ def generate_wheretofix_graph(
             )
 
     def get_fix_location_candidates(state: WhereToFixState, thread: list[BaseMessage]):
+        if state.predefined_fix_locations:
+            for loc_data in state.predefined_fix_locations:  
+                fix_location = FixLocationState()  
+                fix_location.locations.append(  
+                    LocationState(  
+                        file_name=loc_data['file_name'],  
+                        fix_line=loc_data['fix_line'],  
+                        start_line=loc_data['start_line'],  
+                        end_line=loc_data['end_line'],  
+                        code=get_code_line(  
+                            loc_data['file_name'],  
+                            loc_data['fix_line'],  
+                            loc_data['fix_line'],  
+                            state.package_location,  
+                        ),  
+                    )  
+                )  
+                fix_location.rationale = loc_data.get('rationale', 'User-specified location')  
+                state.fix_location_candidates.append(fix_location)
+                logger.debug(f"Added predefined fix location: {fix_location}")
+            return  
+        logger.debug("Starting to get fix location candidates using LLM. (not from predefined locations)")
         crash_stack_trace_bak = state.crash_stack_trace.copy()
         memory_allocate_stack_trace_bak = state.memory_allocate_stack_trace.copy()
         memory_free_stack_trace_bak = state.memory_free_stack_trace.copy()
@@ -269,6 +293,9 @@ def generate_wheretofix_graph(
         return loc_state
 
     def select_wheretofix(state: WhereToFixState):
+        if hasattr(state, 'predefined_fix_locations') and state.predefined_fix_locations:  
+            state.fix_location_final = state.fix_location_candidates  
+            return  
         for loc_state in state.fix_location_candidates:
             eval_wheretofix(state, loc_state)
 

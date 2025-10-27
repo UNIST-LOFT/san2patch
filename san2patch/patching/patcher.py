@@ -148,6 +148,9 @@ class San2Patcher(BaseCommander):
             patch_graph = generate_tot_patch_graph(
                 self.LLMPatcher,
             ).with_config({"run_name": "ToTPatch"})
+            
+            predefined_locs = self.vuln_data.get("predefined_fix_locations", None) 
+            self.logger.debug(f"Predefined fix locations: {predefined_locs}")
 
             res_json = patch_graph.invoke(
                 {
@@ -161,6 +164,7 @@ class San2Patcher(BaseCommander):
                     "diff_stage_dir": self.diff_stage_dir,
                     "experiment_name": self.experiment_name,
                     "select_method": self.select_method,
+                    "predefined_fix_locations": predefined_locs,
                 }
             )
             res = FullPatchState(**res_json)
