@@ -439,7 +439,7 @@ def generate_runpatch_graph(
             state.diff_stage_dir.split("/")[-1],
             state.experiment_name,
         )
-
+        
         for fix_strategy in state.fix_strategy_final:
             branched_genpatch_states: list[GenPatchState] = genpatch_per_strategy(
                 state, fix_strategy

@@ -173,6 +173,7 @@ docker_list.txt
 .ruff_cache
 logs
 .vscode
+.zed
 benchmarks/final/final-test/gen_diff_*
 benchmarks/final/final-test/repo
 benchmarks/final/final-test/repo_copy

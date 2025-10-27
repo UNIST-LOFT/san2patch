@@ -135,7 +135,9 @@ def run_patch_one(
 
     # Count directory that starts with "stage_" to resume from the last stage
     last_try_cnt = len([x for x in os.listdir(diff_dir) if x.startswith("stage_")])
-
+    collected_successes = list()
+    collected_metadata = list()
+    
     for i in range(last_try_cnt, last_try_cnt + retry_cnt):
         if max_retry_cnt != 0 and i >= max_retry_cnt:
             logger.error(f"Max retry count reached for vuln_id: {vuln_id}. exiting...")
@@ -178,7 +180,7 @@ def run_patch_one(
 
         def _run_patch():
             try:
-                res = patcher.make_diff(try_cnt=i, stage=stage_num)
+                res = patcher.make_diff(try_cnt=i, stage=stage_num, prev_correct_patches=collected_successes)
 
                 # Re-evaluate if the patch is already successful
                 if TestEvalRetCode.SUCCESS.value in res.patch_success:
@@ -208,13 +210,22 @@ def run_patch_one(
 
                     # Copy the success diff file to the vuln directory
                     vuln_dir = os.path.join(dataset.gen_diff_dir, vuln_id)
+                    os.makedirs(vuln_dir, exist_ok=True)
+                    patch_id = len(collected_successes)
+                    saved_diff_path = os.path.join(vuln_dir, f"{experiment_name}_{vuln_id}_success_{patch_id}.diff")
+                    saved_artifact_path = os.path.join(vuln_dir, f"{experiment_name}_{vuln_id}_success_{patch_id}.artifact")
 
-                    dataset.run_cmd(
-                        f"cp {success_diff_file} {vuln_dir}/{experiment_name}_{vuln_id}_success.diff"
-                    )
-                    dataset.run_cmd(
-                        f"cp {success_graph_output} {vuln_dir}/{experiment_name}_{vuln_id}_success.artifact"
-                    )
+                    dataset.run_cmd(f"cp {success_diff_file} {saved_diff_path}")
+                    dataset.run_cmd(f"cp {success_graph_output} {saved_artifact_path}")
+                    with open(saved_diff_path, "r", errors="ignore") as f:
+                        diff_content = f.read()
+                    collected_successes.append(diff_content)
+                    collected_metadata.append((saved_diff_path, saved_artifact_path))
+                    logger.info(f"Collected new successful patch #{patch_id} for {vuln_id}")
+                    if halt_on_success:
+                        if len(collected_successes) >= 10:
+                            logger.info(f"Halting on first success as per configuration.")
+                            return True
 
                 elif TestEvalRetCode.FUNC_FAILED.value in res.patch_success:
                     ret_code = TestEvalRetCode.FUNC_FAILED.value
@@ -253,10 +264,10 @@ def run_patch_one(
                     f"Ending patching stage {stage_num} try {i} for vuln_id: {vuln_id}"
                 )
 
-                if ret_code == TestEvalRetCode.SUCCESS.value:
-                    logger.success(f"Patch success for vuln_id: {vuln_id}")
-                    if halt_on_success:
-                        return True
+                # if ret_code == TestEvalRetCode.SUCCESS.value:
+                #     logger.success(f"Patch success for vuln_id: {vuln_id}")
+                #     if halt_on_success:
+                #         return True
 
             except Exception as e:
                 if isinstance(aim_run, Run):
@@ -279,20 +290,20 @@ def run_patch_one(
 
             return False
 
-        if os.getenv("LANGSMITH_API_KEY", "") != "":
-            with tracing_v2_enabled() as cb:
-                logger.info("Langsmith Tracing enabled")
-                res = _run_patch()
-                if res:
-                    break
+        # if os.getenv("LANGSMITH_API_KEY", "") != "":
+        #     with tracing_v2_enabled() as cb:
+        #         logger.info("Langsmith Tracing enabled")
+        #         res = _run_patch()
+        #         if res:
+        #             break
 
-        else:
-            with tracing_context(enabled=False):
-                logger.info("Langsmith Tracing disabled")
-                cb = None
-                res = _run_patch()
-                if res:
-                    break
+        # else:
+        with tracing_context(enabled=False):
+            logger.info("Langsmith Tracing disabled")
+            cb = None
+            res = _run_patch()
+            if res:
+                break
 
     logger.info(f"vuln_id_end: {vuln_id}")
 

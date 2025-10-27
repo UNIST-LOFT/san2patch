@@ -1,0 +1,15 @@
+{
+  "include": [
+    "run.py",
+    "san2patch"
+  ],
+  "exclude": [
+    "**/__pycache__",
+    "**/.git",
+    "**/node_modules",
+    "**/.venv",
+    "**/venv",
+    "**/dist",
+    "**/build"
+  ]
+}

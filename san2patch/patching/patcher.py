@@ -138,7 +138,7 @@ class San2Patcher(BaseCommander):
             self.docker_id,
         )
 
-    def generate_patch(self):
+    def generate_patch(self, prev_correct_patches: list[str] | None = None):
         # Generate patch and save it to self.output_dir as filename {self.vuln_id}.diff
         if self.aim_run:
             self.aim_run["step"] = ExperimentStepEnum.GENPATCH.value
@@ -151,6 +151,7 @@ class San2Patcher(BaseCommander):
             
             predefined_locs = self.vuln_data.get("predefined_fix_locations", None) 
             self.logger.debug(f"Predefined fix locations: {predefined_locs}")
+            self.logger.debug(f"Prev correct patches: {prev_correct_patches}")
 
             res_json = patch_graph.invoke(
                 {
@@ -165,6 +166,7 @@ class San2Patcher(BaseCommander):
                     "experiment_name": self.experiment_name,
                     "select_method": self.select_method,
                     "predefined_fix_locations": predefined_locs,
+                    "prev_correct_patches": prev_correct_patches,
                 }
             )
             res = FullPatchState(**res_json)
@@ -272,7 +274,7 @@ class San2Patcher(BaseCommander):
 
         return res
 
-    def make_diff(self, try_cnt=0, stage=0):
+    def make_diff(self, try_cnt=0, stage=0, prev_correct_patches: list[str] | None = None):
         if not os.path.exists(self.copy_repo_dir):
             self.run_cmd(f"cp -r {self.repo_dir} {self.copy_repo_dir}")
             self.logger.info(f"Repo copy complete {self.copy_repo_dir}")
@@ -284,7 +286,7 @@ class San2Patcher(BaseCommander):
             self.logger.info(f"create stage_{stage}_{try_cnt} {self.diff_stage_dir}")
             os.makedirs(self.diff_stage_dir)
 
-        res = self.generate_patch()
+        res = self.generate_patch(prev_correct_patches=prev_correct_patches)
 
         res_output = os.path.join(
             self.diff_stage_dir, f"{self.vuln_id}_graph_output.json"

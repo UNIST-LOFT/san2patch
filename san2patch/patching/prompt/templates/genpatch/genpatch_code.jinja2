@@ -26,14 +26,40 @@
 <Instruction>
 Using the information above, generate candidates for modified code that fixes the vulnerability.
 Generate code that is modified in as many different ways as possible. Each candidate should be different from the others.
+Each patches should contain minimal changes, like adding a single line of checks (null checks, boundary checks).
 You should only fix the Fix_Target_Code unconditionally. Don't respond the code in Fix_Target_Function_Info.
-Generate the actual fixed code, not just a patch file that modifies the code.
+Generate the actual fixed code, not just a patch file that modifies the code. Preserve all whitespaces (tabs and spaces) in Fix_Target_Code to ensure that only intentional changes appear in the final diff.
 </Instruction>
+
+{% if prev_correct_patches %}
+<Previous_Successful_Patches>
+    <Note>
+        The inputs below list previously accepted (successful) patches for this vulnerability.
+        Important: DO NOT produce a patch that is identical or semantically equivalent to any of these patches.
+        Produce a semantically different fix. You may use a different minimal-check style (different guard, check order, or small logic change),
+        but keep the patch small. If you cannot produce a different minimal patch, explain why.
+    </Note>
+
+    {# To limit tokens, we show only a truncated preview (first 4k chars) of each previous patch.
+       If a patch is longer, the preview will be followed by "(truncated)". #}
+    {% for p in prev_correct_patches %}
+    <Patch index="{{ loop.index }}">
+<![CDATA[
+{{ p[:00] }}
+{% if p|length > 4096 %}... (truncated){% endif %}
+]]>
+    </Patch>
+    {% endfor %}
+</Previous_Successful_Patches>
+{% endif %}
+
 
 <Important_Note>
 - Only the source code provided by Fix_Target_Code is checked and modified line by line, and no additional functions are modified.
 - Do not modify using ambiguous source code.
 - The source code should be modified as simply as possible, without complex modifications.
+- **MINIMIZE CHANGES: Make the smallest possible modification to fix the vulnerability. Change only the necessary lines and preserve as much of the original code structure as possible.** 
+- **PREFER SIMPLE FIXES: Use simple checks (null checks, boundary checks) rather than restructuring code.** 
 - Source code patch must only patch the vulnerability within the Fix_Target_Code.
 - You must patch the vulnerability and output safe Fix_Target_Code code without any vulnerabilities.
 - The patched code must have the same start and end as the Fix_Target_Code we provided.
