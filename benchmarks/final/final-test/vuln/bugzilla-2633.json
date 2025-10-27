@@ -46,5 +46,13 @@
     "build_script": "build.sh",
     "test_script": "test.sh",
     "build_command": "make -j20 CFLAGS='-static' CPPFLAGS='-static' LDFLAGS='-static'",
-    "bug_type": "Buffer Overflow"
+    "bug_type": "Buffer Overflow",
+    "predefined_fix_locations": [
+      {
+        "file_name": "tools/tiff2ps.c",
+        "fix_line": 2441,
+        "start_line": 2433,
+        "end_line": 2495
+      }
+    ]
 }

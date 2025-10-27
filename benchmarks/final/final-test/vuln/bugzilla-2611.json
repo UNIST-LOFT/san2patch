@@ -50,5 +50,13 @@
     "build_script": "build.sh",
     "test_script": "test.sh",
     "build_command": "make -j20 CFLAGS='-static' CPPFLAGS='-static' LDFLAGS='-static'",
-    "bug_type": "Divide by Zero"
+    "bug_type": "Divide by Zero",
+    "predefined_fix_locations": [
+      {
+        "file_name": "libtiff/tif_ojpeg.c",
+        "fix_line": 815,
+        "start_line": 801,
+        "end_line": 855
+      }
+    ]
 }
