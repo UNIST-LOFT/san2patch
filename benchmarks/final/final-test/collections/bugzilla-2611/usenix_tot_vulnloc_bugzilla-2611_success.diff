@@ -1,0 +1,131 @@
+diff --git a/libtiff/tif_ojpeg.c b/libtiff/tif_ojpeg.c
+index 1ccc3f9b..812f9f5e 100644
+--- a/libtiff/tif_ojpeg.c
++++ b/libtiff/tif_ojpeg.c
+@@ -802,6 +802,10 @@ OJPEGDecode(TIFF* tif, uint8* buf, tmsize_t cc, uint16 s)
+ static int
+ OJPEGDecodeRaw(TIFF* tif, uint8* buf, tmsize_t cc)
+ {
++	/* Rationale: Prevent divide-by-zero and other invalid metadata-derived values.
++	   Validate pointer and numeric fields parsed from TIFF/OJPEG before any
++	   division, modulo or buffer-index arithmetic. On invalid input, report
++	   an error and fail gracefully to avoid crashes/undefined behavior. */
+ 	static const char module[]="OJPEGDecodeRaw";
+ 	OJPEGState* sp=(OJPEGState*)tif->tif_data;
+ 	uint8* m;
+@@ -811,13 +815,45 @@ OJPEGDecodeRaw(TIFF* tif, uint8* buf, tmsize_t cc)
+ 	uint8* ocr;
+ 	uint8* p;
+ 	uint32 q;
+-	uint8* r;
++// FIXME: Crash CWE-369: Divide By Zero
++ 	uint8* r;
+ 	uint8 sx,sy;
++	/* Basic sanity checks to avoid divisions/modulo by zero and indexing issues. */
++	if (tif==NULL || sp==NULL)
++	{
++		TIFFErrorExt(tif? tif->tif_clientdata: NULL, module, "Invalid TIFF or OJPEG state");
++		return(0);
++	}
++	if (cc<=0)
++	{
++		TIFFErrorExt(tif->tif_clientdata,module,"Invalid scanline length");
++		return(0);
++	}
++	if (sp->bytes_per_line==0)
++	{
++		TIFFErrorExt(tif->tif_clientdata,module,"bytes_per_line is zero");
++		return(0);
++	}
++	/* Ensure modulo/division denominator non-zero before use. */
+ 	if (cc%sp->bytes_per_line!=0)
+ 	{
+ 		TIFFErrorExt(tif->tif_clientdata,module,"Fractional scanline not read");
+ 		return(0);
+ 	}
++	/* Validate subsampling related fields used for indexing and arithmetic. */
++	if (sp->subsampling_ver == 0 || sp->subsampling_hor == 0 ||
++	    sp->subsampling_convert_ylinelen == 0 || sp->subsampling_convert_clinelen == 0 ||
++	    sp->subsampling_convert_clinelenout == 0 || sp->subsampling_convert_ylinelen < sp->subsampling_hor)
++	{
++		TIFFErrorExt(tif->tif_clientdata,module,"Invalid subsampling or buffer line lengths");
++		return(0);
++	}
++	/* Ensure state index range is sane. */
++	if (sp->subsampling_convert_state >= sp->subsampling_convert_clines)
++	{
++		TIFFErrorExt(tif->tif_clientdata,module,"Invalid subsampling_convert_state");
++		return(0);
++	}
+ 	assert(cc>0);
+ 	m=buf;
+ 	n=cc;
+@@ -854,6 +890,7 @@ OJPEGDecodeRaw(TIFF* tif, uint8* buf, tmsize_t cc)
+ 	return(1);
+ }
+ 
++
+ static int
+ OJPEGDecodeScanlines(TIFF* tif, uint8* buf, tmsize_t cc)
+ {
+diff --git a/libtiff/tif_read.c b/libtiff/tif_read.c
+index 52bbf507..b797090c 100644
+--- a/libtiff/tif_read.c
++++ b/libtiff/tif_read.c
+@@ -295,25 +295,54 @@ TIFFReadScanline(TIFF* tif, void* buf, uint32 row, uint16 sample)
+ {
+ 	int e;
+ 
++	/* Rationale:
++	 * Defensively validate values used by downstream decoder callbacks.
++	 * The Old-JPEG raw decoder (invoked via tif->tif_decoderow / tif->tif_postdecode)
++	 * can perform divisions and modulo operations based on tif_scanlinesize (and
++	 * other TIFF directory values). If tif_scanlinesize is zero (or decoder
++	 * callbacks are NULL) a division/modulo by zero or a NULL function call may
++	 * occur. Validate tif_scanlinesize and callback pointers here and fail
++	 * gracefully to avoid undefined behavior (CWE-369).
++	 */
++
+ 	if (!TIFFCheckRead(tif, 0))
+ 		return (-1);
+ 	if( (e = TIFFSeek(tif, row, sample)) != 0) {
+ 		/*
+-		 * Decompress desired row into user buffer.
++	// FIXME: Crash CWE-369: Divide By Zero
++ 		 * Decompress desired row into user buffer.
+ 		 */
++
++		/* Defensive checks before invoking decoder callbacks */
++		if (tif == NULL || buf == NULL) {
++			/* Invalid parameters */
++			return (-1);
++		}
++
++		if (tif->tif_scanlinesize == 0) {
++			/* Prevent downstream divide/modulo by zero in decoder */
++			return (-1);
++		}
++
++		if (tif->tif_decoderow == NULL) {
++			/* Nothing to do without a decoder */
++			return (-1);
++		}
++
+ 		e = (*tif->tif_decoderow)
+ 		    (tif, (uint8*) buf, tif->tif_scanlinesize, sample);  
+ 
+ 		/* we are now poised at the beginning of the next row */
+ 		tif->tif_row = row + 1;
+ 
+-		if (e)
++		if (e && tif->tif_postdecode)
+ 			(*tif->tif_postdecode)(tif, (uint8*) buf,
+ 			    tif->tif_scanlinesize);  
+ 	}
+ 	return (e > 0 ? 1 : -1);
+ }
+ 
++
+ /*
+  * Read a strip of data and decompress the specified
+  * amount into the user-supplied buffer.

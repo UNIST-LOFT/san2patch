@@ -1,0 +1,107 @@
+diff --git a/libtiff/tif_ojpeg.c b/libtiff/tif_ojpeg.c
+index 1ccc3f9b..0a7a9ba0 100644
+--- a/libtiff/tif_ojpeg.c
++++ b/libtiff/tif_ojpeg.c
+@@ -784,19 +784,19 @@ OJPEGPreDecodeSkipScanlines(TIFF* tif)
+ static int
+ OJPEGDecode(TIFF* tif, uint8* buf, tmsize_t cc, uint16 s)
+ {
+-	OJPEGState* sp=(OJPEGState*)tif->tif_data;
+-	(void)s;
+-	if (sp->libjpeg_jpeg_query_style==0)
+-	{
+-		if (OJPEGDecodeRaw(tif,buf,cc)==0)
+-			return(0);
+-	}
+-	else
+-	{
+-		if (OJPEGDecodeScanlines(tif,buf,cc)==0)
+-			return(0);
+-	}
+-	return(1);
++OJPEGState* sp=(OJPEGState*)tif->tif_data;
++(void)s;
++if (sp->libjpeg_jpeg_query_style==0)
++{
++	if (OJPEGDecodeRaw(tif,buf,cc)==0)
++		return(0);
++}
++else
++{
++	if (OJPEGDecodeScanlines(tif,buf,cc)==0)
++		return(0);
++}
++return(1);
+ }
+ 
+ static int
+@@ -811,14 +811,60 @@ OJPEGDecodeRaw(TIFF* tif, uint8* buf, tmsize_t cc)
+ 	uint8* ocr;
+ 	uint8* p;
+ 	uint32 q;
+-	uint8* r;
++	// FIXME: Crash CWE-369: Divide By Zero
++ 	uint8* r;
+ 	uint8 sx,sy;
++	/* Rationale:
++	   Validate header/derived numeric values that will be used as
++	   divisors/moduli or loop bounds. If any of these values are zero
++	   or otherwise clearly invalid, report an error and return instead
++	   of performing arithmetic that could cause SIGFPE or other
++	   undefined behavior. These runtime checks replace unchecked
++	   assumptions about the OJPEG header content.
++	*/
++	if (sp==NULL)
++	{
++		TIFFErrorExt(tif->tif_clientdata,module,"Invalid OJPEG state (NULL)");
++		return(0);
++	}
++	/* Ensure bytes_per_line is sane and non-zero before using it in a modulus. */
++	if (sp->bytes_per_line==0)
++	{
++		TIFFErrorExt(tif->tif_clientdata,module,"Invalid bytes_per_line in OJPEG header");
++		return(0);
++	}
++	/* Prevent obviously unreasonable values (simple sanity bound). */
++	if (sp->bytes_per_line > (tmsize_t)(1<<24))
++	{
++		TIFFErrorExt(tif->tif_clientdata,module,"Unreasonable bytes_per_line in OJPEG header");
++		return(0);
++	}
++	/* Now safe to perform modulus. */
+ 	if (cc%sp->bytes_per_line!=0)
+ 	{
+ 		TIFFErrorExt(tif->tif_clientdata,module,"Fractional scanline not read");
+ 		return(0);
+ 	}
++	/* cc must be positive for subsequent processing. */
+ 	assert(cc>0);
++	/* Validate subsampling factors and line lengths used by loops below. */
++	if (sp->subsampling_ver==0 || sp->subsampling_hor==0)
++	{
++		TIFFErrorExt(tif->tif_clientdata,module,"Invalid subsampling factors in OJPEG header");
++		return(0);
++	}
++	if (sp->subsampling_convert_ylinelen==0 || sp->subsampling_convert_clinelen==0)
++	{
++		TIFFErrorExt(tif->tif_clientdata,module,"Invalid convert line lengths in OJPEG header");
++		return(0);
++	}
++	/* Ensure ylinelen is at least as large as the horizontal subsampling used in inner loop
++	   to avoid r pointer arithmetic running past the line. */
++	if (sp->subsampling_convert_ylinelen < sp->subsampling_hor)
++	{
++		TIFFErrorExt(tif->tif_clientdata,module,"subsampling_convert_ylinelen too small for subsampling_hor");
++		return(0);
++	}
+ 	m=buf;
+ 	n=cc;
+ 	do
+@@ -844,6 +890,7 @@ OJPEGDecodeRaw(TIFF* tif, uint8* buf, tmsize_t cc)
+ 			oy+=sp->subsampling_hor;
+ 			*p++=*ocb++;
+ 			*p++=*ocr++;
++
+ 		}
+ 		sp->subsampling_convert_state++;
+ 		if (sp->subsampling_convert_state==sp->subsampling_convert_clines)

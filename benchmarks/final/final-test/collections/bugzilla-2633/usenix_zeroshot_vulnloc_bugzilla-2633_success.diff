@@ -1,0 +1,61 @@
+diff --git a/tools/tiff2ps.c b/tools/tiff2ps.c
+index ae296e91..de94df52 100644
+--- a/tools/tiff2ps.c
++++ b/tools/tiff2ps.c
+@@ -2424,9 +2424,9 @@ PSColorSeparatePreamble(FILE* fd, uint32 w, uint32 h, int nc)
+ }
+ 
+ #define	DOBREAK(len, howmany, fd) \
+-	if (((len) -= (howmany)) <= 0) {	\
+-		putc('\n', fd);			\
+-		(len) = MAXLINE-(howmany);	\
++	if (((len) -= (howmany)) <= 0) {\
++		putc('\n', fd);\
++		(len) = MAXLINE-(howmany);\
+ 	}
+ #define	PUTHEX(c,fd)	putc(hex[((c)>>4)&0xf],fd); putc(hex[(c)&0xf],fd)
+ 
+@@ -2438,7 +2438,8 @@ PSDataColorContig(FILE* fd, TIFF* tif, uint32 w, uint32 h, int nc)
+ 	tsize_t cc;
+ 	unsigned char *tf_buf;
+ 	unsigned char *cp, c;
+-
++// FIXME: Crash
++ 
+ 	(void) w;
+ 	tf_buf = (unsigned char *) _TIFFmalloc(tf_bytesperrow);
+ 	if (tf_buf == NULL) {
+@@ -2459,7 +2460,15 @@ PSDataColorContig(FILE* fd, TIFF* tif, uint32 w, uint32 h, int nc)
+ 		if (alpha) {
+ 			int adjust;
+ 			cc = 0;
+-			for (; cc < tf_bytesperrow; cc += samplesperpixel) {
++			/*
++			 * Ensure we only process full pixels. The sanitizer
++			 * discovered a heap-buffer-overflow when cp[nc] was
++			 * accessed for the alpha component while fewer than
++			 * samplesperpixel bytes remained in the buffer. By
++			 * requiring that a full pixel (samplesperpixel bytes)
++			 * is available we avoid out-of-bounds reads.
++			 */
++			for (; cc + (tsize_t)samplesperpixel <= tf_bytesperrow; cc += samplesperpixel) {
+ 				DOBREAK(breaklen, nc, fd);
+ 				/*
+ 				 * For images with alpha, matte against
+@@ -2467,10 +2476,16 @@ PSDataColorContig(FILE* fd, TIFF* tif, uint32 w, uint32 h, int nc)
+ 				 *    Cback * (1 - Aimage)
+ 				 * where Cback = 1.
+ 				 */
++				/* defensive: if samplesperpixel is not larger than nc we cannot
++				 * access the alpha component at cp[nc], so bail out.
++				 */
++				if (samplesperpixel <= nc)
++					break;
+ 				adjust = 255 - cp[nc];
+ 				switch (nc) {
+ 				case 4: c = *cp++ + adjust; PUTHEX(c,fd);
+ 				case 3: c = *cp++ + adjust; PUTHEX(c,fd);
++
+ 				case 2: c = *cp++ + adjust; PUTHEX(c,fd);
+ 				case 1: c = *cp++ + adjust; PUTHEX(c,fd);
+ 				}

@@ -1,0 +1,65 @@
+diff --git a/src/pr.c b/src/pr.c
+index 20e863760..84c6be912 100644
+--- a/src/pr.c
++++ b/src/pr.c
+@@ -2233,31 +2233,40 @@ print_sep_string (void)
+   else
+     {
+       for (; separators_not_printed > 0; --separators_not_printed)
++{
++  /* Avoid out-of-bounds read: iterate at most `l` characters and stop at NUL.
++     This does not rely on strnlen() (which may be unavailable on some
++     platforms), and preserves the original behavior of advancing `s` by the
++     number of consumed characters. */
++  int consumed = 0;
++  /* iterate up to `l` chars or until we hit '\0' */
++  for (; consumed < l && s[consumed] != '\0'; ++consumed)
++    {
++      char ch = s[consumed];
++      /* 3 types of sep_strings: spaces only, spaces and chars, chars only */
++      if (ch == ' ')
++        {
++          /* We're tabifying output; consecutive spaces in
++             sep_string may have to be converted to tabs */
++          ++spaces_not_printed;
++        }
++      else
+         {
+-          while (l-- > 0)
+-            {
+-              /* 3 types of sep_strings: spaces only, spaces and chars,
+-              chars only */
+-              if (*s == ' ')
+-                {
+-                  /* We're tabifying output; consecutive spaces in
+-                  sep_string may have to be converted to tabs */
+-                  s++;
+-                  ++spaces_not_printed;
+-                }
+-              else
+-                {
+-                  if (spaces_not_printed > 0)
+-                    print_white_space ();
+-                  putchar (*s++);
+-                  ++output_position;
+-                }
+-            }
+-          /* sep_string ends with some spaces */
+           if (spaces_not_printed > 0)
+             print_white_space ();
++          putchar (ch);
++          ++output_position;
+         }
+     }
++  /* Advance s by the number of characters consumed to match the
++     original code's pointer progression (original did s++ per char). */
++  s += consumed;
++  /* sep_string ends with some spaces */
++  if (spaces_not_printed > 0)
++    print_white_space ();
++}
++
++    }
+ }
+ 
+ /* Print (or store, depending on p->char_func) a clump of N

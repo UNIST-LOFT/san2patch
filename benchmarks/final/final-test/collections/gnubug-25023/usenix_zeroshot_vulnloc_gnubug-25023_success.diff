@@ -1,0 +1,64 @@
+diff --git a/src/pr.c b/src/pr.c
+index 20e863760..a5d96cdda 100644
+--- a/src/pr.c
++++ b/src/pr.c
+@@ -2224,6 +2224,19 @@ print_sep_string (void)
+   char const *s = col_sep_string;
+   int l = col_sep_length;
+ 
++  /* Rationale for change:
++     The original implementation dereferenced and incremented 's' up to
++     'l' times without checking for the string terminator. If
++     col_sep_length exceeds the actual length of col_sep_string, this
++     can read past the end of the string and trigger a global
++     buffer overflow. To fix this, iterate using an index and ensure we
++     never read past the NUL terminator. Also reset the per-separator
++     scanning length for each separator so we don't reuse a decremented
++     'l' across iterations. If the separator string is shorter than
++     'l', treat the remaining characters as spaces (as a conservative
++     behavior consistent with how spaces are counted/printed).
++  */
++
+   if (separators_not_printed <= 0)
+     {
+       /* We'll be starting a line with chars_per_margin, anything else? */
+@@ -2234,25 +2247,33 @@ print_sep_string (void)
+     {
+       for (; separators_not_printed > 0; --separators_not_printed)
+         {
+-          while (l-- > 0)
++          int i;
++
++          /* Iterate up to the configured length but stop at the NUL. */
++          for (i = 0; i < l && s[i] != '\0'; ++i)
+             {
+               /* 3 types of sep_strings: spaces only, spaces and chars,
+-              chars only */
+-              if (*s == ' ')
++                 chars only */
++              if (s[i] == ' ')
+                 {
+                   /* We're tabifying output; consecutive spaces in
+-                  sep_string may have to be converted to tabs */
+-                  s++;
++                     sep_string may have to be converted to tabs */
+                   ++spaces_not_printed;
+                 }
+               else
+                 {
+                   if (spaces_not_printed > 0)
+                     print_white_space ();
+-                  putchar (*s++);
++                  putchar (s[i]);
+                   ++output_position;
+                 }
+             }
++
++          /* If the sep_string is shorter than l, treat the remaining
++             requested characters as spaces. */
++          for (; i < l; ++i)
++            ++spaces_not_printed;
++
+           /* sep_string ends with some spaces */
+           if (spaces_not_printed > 0)
+             print_white_space ();

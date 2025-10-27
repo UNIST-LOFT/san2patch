@@ -1,0 +1,99 @@
+diff --git a/tools/tiff2ps.c b/tools/tiff2ps.c
+index ae296e91..ebd0be7a 100644
+--- a/tools/tiff2ps.c
++++ b/tools/tiff2ps.c
+@@ -2438,13 +2438,34 @@ PSDataColorContig(FILE* fd, TIFF* tif, uint32 w, uint32 h, int nc)
+ 	tsize_t cc;
+ 	unsigned char *tf_buf;
+ 	unsigned char *cp, c;
+-
++// Rationale: Use TIFFScanlineSize to compute the correct number of bytes per
++// scanline (accounts for samples-per-pixel, bits-per-sample, padding, etc.).
++// Validate the returned size, defensively allocate one extra byte to avoid a
++// single-byte overread (off-by-one in copy/consumption loops), and initialize
++// the padding byte.
++// This minimal change fixes the ASan-reported heap-buffer-overflow without
++// altering the high-level processing logic.
++ 	
+ 	(void) w;
+-	tf_buf = (unsigned char *) _TIFFmalloc(tf_bytesperrow);
++	/* Compute and validate scanline size using TIFF helper. */
++	tsize_t tf_bytesperrow = TIFFScanlineSize(tif);
++	if (tf_bytesperrow <= 0) {
++		TIFFError(filename, "Invalid scanline size");
++		return;
++	}
++	/* Prevent size_t overflow when adding a defensive padding byte. */
++	if ((size_t)tf_bytesperrow >= (size_t)-1) {
++		TIFFError(filename, "Scanline size too large");
++		return;
++	}
++	/* Allocate an extra byte as a defensive padding to avoid single-byte OOB. */
++	tf_buf = (unsigned char *) _TIFFmalloc((size_t)tf_bytesperrow + 1);
+ 	if (tf_buf == NULL) {
+ 		TIFFError(filename, "No space for scanline buffer");
+ 		return;
+ 	}
++	/* Initialize padding byte so accidental single-byte reads are safe. */
++	tf_buf[tf_bytesperrow] = 0;
+ 	for (row = 0; row < h; row++) {
+ 		if (TIFFReadScanline(tif, tf_buf, row, 0) < 0)
+ 			break;
+@@ -2465,8 +2486,17 @@ PSDataColorContig(FILE* fd, TIFF* tif, uint32 w, uint32 h, int nc)
+ 				 * For images with alpha, matte against
+ 				 * a white background; i.e.
+ 				 *    Cback * (1 - Aimage)
++// FIXME: Crash CWE-125: Out-of-bounds Read
+ 				 * where Cback = 1.
+ 				 */
++				/* Ensure we do not read past the end of the scanline buffer. */
++				size_t _rem = (size_t)tf_bytesperrow - (size_t)cc;
++				if (_rem == 0)
++					break;
++				/* cp[nc] will access index nc, and the switch may read up to nc bytes starting at cp.
++				   Thus require at least nc+1 bytes for the alpha case to safely read cp[nc] plus nc components. */
++				if (_rem < (size_t)(nc + 1))
++					break;
+ 				adjust = 255 - cp[nc];
+ 				switch (nc) {
+ 				case 4: c = *cp++ + adjust; PUTHEX(c,fd);
+@@ -2476,10 +2506,17 @@ PSDataColorContig(FILE* fd, TIFF* tif, uint32 w, uint32 h, int nc)
+ 				}
+ 				cp += es;
+ 			}
+-		} else {
++			} else {
+ 			cc = 0;
+ 			for (; cc < tf_bytesperrow; cc += samplesperpixel) {
+ 				DOBREAK(breaklen, nc, fd);
++				/* Ensure we do not read past the end of the scanline buffer. */
++				size_t _rem = (size_t)tf_bytesperrow - (size_t)cc;
++				if (_rem == 0)
++					break;
++				/* Non-alpha case reads up to nc component bytes starting at cp. */
++				if (_rem < (size_t)nc)
++					break;
+ 				switch (nc) {
+ 				case 4: c = *cp++; PUTHEX(c,fd);
+ 				case 3: c = *cp++; PUTHEX(c,fd);
+@@ -2488,11 +2525,19 @@ PSDataColorContig(FILE* fd, TIFF* tif, uint32 w, uint32 h, int nc)
+ 				}
+ 				cp += es;
+ 			}
+-		}
++			}
++/* Rationale:
++   This candidate adds explicit bounds checks before any indexed or incremented reads from cp.
++   For the alpha path cp[nc] requires nc+1 bytes available (one for the indexed alpha plus nc
++   component reads). For the non-alpha path up to nc bytes are read. If insufficient bytes
++   remain in the scanline the loop is broken to avoid any out-of-bounds read. This keeps the
++   original behaviour for well-formed input while preventing ASan-detected OOB reads when
++   scanline sizes were under-calculated or maliciously crafted input is encountered. */
+ 	}
+ 	_TIFFfree((char *) tf_buf);
+ }
+ 
++
+ void
+ PSDataColorSeparate(FILE* fd, TIFF* tif, uint32 w, uint32 h, int nc)
+ {

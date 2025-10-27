@@ -1,0 +1,67 @@
+diff --git a/src/make-prime-list.c b/src/make-prime-list.c
+index 68c972a84..31a578749 100644
+--- a/src/make-prime-list.c
++++ b/src/make-prime-list.c
+@@ -158,9 +158,27 @@ output_primes (const struct prime *primes, unsigned nprimes)
+ }
+ 
+ static void *
+-xalloc (size_t s)
++// FIXME: Crash CWE-125: Out-of-bounds Read
++ xalloc (size_t s)
+ {
+-  void *p = malloc (s);
++  /* Rationale:
++     Ensure at least one byte is allocated for callers that request 0 bytes
++     and may still read a sentinel. Also allocate one extra byte to tolerate
++     an off-by-one read. Explicitly check for overflow when computing need.
++     We preserve existing error behavior on allocation failure.
++  */
++  size_t need;
++  if (s == (size_t)-1)
++    {
++      /* s + 1 would overflow size_t */
++      fprintf (stderr, "Virtual memory exhausted.\n");
++      exit (EXIT_FAILURE);
++    }
++
++  /* ensure at least 1 byte and add 1 for safety */
++  need = (s == 0 ? 1 : s) + 1;
++
++  void *p = malloc (need);
+   if (p)
+     return p;
+ 
+@@ -168,6 +186,7 @@ xalloc (size_t s)
+   exit (EXIT_FAILURE);
+ }
+ 
++
+ int
+ main (int argc, char **argv)
+ {
+@@ -209,10 +228,15 @@ main (int argc, char **argv)
+       process_prime (&prime_list[nprimes++], p);
+ 
+       for (j = (p*p - 3)/2; j < size; j+= p)
+-        sieve[j] = 0;
+-
+-      while (i < size && sieve[++i] == 0)
+-        ;
++// FIXME: Crash CWE-125: Out-of-bounds Read
++         sieve[j] = 0;
++
++      /* Rationale: increment first then skip zeroed entries while
++         ensuring bounds are checked before each access. This removes
++         the pre-increment that caused a possible out-of-bounds read. */
++      ++i;
++      while (i < size && sieve[i] == 0)
++        ++i;
+     }
+ 
+   output_primes (prime_list, nprimes);
+@@ -225,3 +249,4 @@ main (int argc, char **argv)
+ 
+   return EXIT_SUCCESS;
+ }
++

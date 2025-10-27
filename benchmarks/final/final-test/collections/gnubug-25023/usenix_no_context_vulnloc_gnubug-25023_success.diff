@@ -1,0 +1,65 @@
+diff --git a/src/pr.c b/src/pr.c
+index 20e863760..c20dfebc5 100644
+--- a/src/pr.c
++++ b/src/pr.c
+@@ -2234,25 +2234,46 @@ print_sep_string (void)
+     {
+       for (; separators_not_printed > 0; --separators_not_printed)
+         {
+-          while (l-- > 0)
++          /* Rationale: avoid reading past the terminating NUL of the
++             separator string. Compute a safe length (no more than l)
++             using strnlen and iterate only up to that length. This
++             prevents the previous one-byte read past the end (CWE-125)
++             while preserving the original loop semantics of consuming
++             up to "l" characters from the separator. */
++          size_t sep_len = strnlen (s, (size_t) l);
++          size_t i;
++
++          for (i = 0; i < sep_len; ++i)
+             {
++              char c = s[i];
++
+               /* 3 types of sep_strings: spaces only, spaces and chars,
+-              chars only */
+-              if (*s == ' ')
++                 chars only */
++              if (c == ' ')
+                 {
+                   /* We're tabifying output; consecutive spaces in
+-                  sep_string may have to be converted to tabs */
+-                  s++;
++                     sep_string may have to be converted to tabs */
+                   ++spaces_not_printed;
+                 }
+               else
+                 {
+                   if (spaces_not_printed > 0)
+                     print_white_space ();
+-                  putchar (*s++);
++                  putchar (c);
+                   ++output_position;
+                 }
+             }
++
++          /* Advance the pointer by the number of characters processed
++             and consume those characters from l, so the rest of the
++             logic (including the final space handling) behaves as
++             before but without any out-of-bounds reads. */
++          s += sep_len;
++          if ((int) sep_len <= l)
++            l -= (int) sep_len;
++          else
++            l = 0;
++
+           /* sep_string ends with some spaces */
+           if (spaces_not_printed > 0)
+             print_white_space ();
+@@ -2270,6 +2291,7 @@ print_clump (COLUMN *p, int n, char *clump)
+     (p->char_func) (*clump++);
+ }
+ 
++
+ /* Print a character.
+ 
+    Update the following comment: process-char hasn't been used any

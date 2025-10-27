@@ -1,0 +1,67 @@
+diff --git a/tools/tiff2ps.c b/tools/tiff2ps.c
+index ae296e91..56d6f616 100644
+--- a/tools/tiff2ps.c
++++ b/tools/tiff2ps.c
+@@ -2424,9 +2424,9 @@ PSColorSeparatePreamble(FILE* fd, uint32 w, uint32 h, int nc)
+ }
+ 
+ #define	DOBREAK(len, howmany, fd) \
+-	if (((len) -= (howmany)) <= 0) {	\
+-		putc('\n', fd);			\
+-		(len) = MAXLINE-(howmany);	\
++	if (((len) -= (howmany)) <= 0) {\
++		putc('\n', fd);\
++		(len) = MAXLINE-(howmany);\
+ 	}
+ #define	PUTHEX(c,fd)	putc(hex[((c)>>4)&0xf],fd); putc(hex[(c)&0xf],fd)
+ 
+@@ -2437,9 +2437,23 @@ PSDataColorContig(FILE* fd, TIFF* tif, uint32 w, uint32 h, int nc)
+ 	int breaklen = MAXLINE, es = samplesperpixel - nc;
+ 	tsize_t cc;
+ 	unsigned char *tf_buf;
+-	unsigned char *cp, c;
+-
++	unsigned char *cp, *end_buf, c;
++// FIXME: Crash CWE-125: Out-of-bounds Read
++	/*
++	 * Rationale for fix:
++	 * The original code could read cp[nc] or perform *cp++ when the
++	 * allocation tf_bytesperrow was smaller than expected, leading to
++	 * an out-of-bounds read. To prevent this, only process complete
++	 * sample groups (pixels) and ensure pointer arithmetic never
++	 * advances past the allocated buffer. We also guard against
++	 * invalid samplesperpixel values.
++	 */
+ 	(void) w;
++	/* Guard against invalid samplesperpixel value to avoid loop issues */
++	if (samplesperpixel <= 0) {
++		TIFFError(filename, "Invalid samplesperpixel value");
++		return;
++	}
+ 	tf_buf = (unsigned char *) _TIFFmalloc(tf_bytesperrow);
+ 	if (tf_buf == NULL) {
+ 		TIFFError(filename, "No space for scanline buffer");
+@@ -2449,6 +2463,7 @@ PSDataColorContig(FILE* fd, TIFF* tif, uint32 w, uint32 h, int nc)
+ 		if (TIFFReadScanline(tif, tf_buf, row, 0) < 0)
+ 			break;
+ 		cp = tf_buf;
++		end_buf = tf_buf + tf_bytesperrow;
+ 		/*
+ 		 * for 16 bits, the two bytes must be most significant
+ 		 * byte first
+@@ -2459,7 +2474,14 @@ PSDataColorContig(FILE* fd, TIFF* tif, uint32 w, uint32 h, int nc)
+ 		if (alpha) {
+ 			int adjust;
+ 			cc = 0;
+-			for (; cc < tf_bytesperrow; cc += samplesperpixel) {
++			/* Process only complete pixels to avoid OOB reads */
++			for (; cc + samplesperpixel <= tf_bytesperrow; cc += samplesperpixel) {
++				cp = tf_buf + cc;
++				/* safety check: ensure alpha sample exists at cp + nc */
++				if ((cp + nc) >= end_buf) {
++					/* incomplete pixel at end - skip remaining bytes */
++					break;
++				}
+ 				DOBREAK(breaklen, nc, fd);
+ 				/*
+ 				 * For images with alpha, matte against
