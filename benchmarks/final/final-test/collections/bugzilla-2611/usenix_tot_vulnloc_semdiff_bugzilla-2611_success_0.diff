@@ -1,0 +1,35 @@
+diff --git a/libtiff/tif_ojpeg.c b/libtiff/tif_ojpeg.c
+index 1ccc3f9b..b6f372b2 100644
+--- a/libtiff/tif_ojpeg.c
++++ b/libtiff/tif_ojpeg.c
+@@ -810,9 +810,21 @@ OJPEGDecodeRaw(TIFF* tif, uint8* buf, tmsize_t cc)
+ 	uint8* ocb;
+ 	uint8* ocr;
+ 	uint8* p;
+-	uint32 q;
++// FIXME: Crash CWE-369: Divide By Zero
++ 	uint32 q;
+ 	uint8* r;
+ 	uint8 sx,sy;
++	/* Rationale: protect the following modulo/division from a zero divisor.
++	   If sp or sp->bytes_per_line are invalid (zero), performing cc % sp->bytes_per_line
++	   will trigger SIGFPE. Fail early with a clear TIFFError. */
++	if (sp == NULL) {
++		TIFFErrorExt(tif->tif_clientdata,module,"Malformed OJPEG: missing decoder state");
++		return(0);
++	}
++	if (sp->bytes_per_line == 0) {
++		TIFFErrorExt(tif->tif_clientdata,module,"Malformed OJPEG: zero bytes_per_line");
++		return(0);
++	}
+ 	if (cc%sp->bytes_per_line!=0)
+ 	{
+ 		TIFFErrorExt(tif->tif_clientdata,module,"Fractional scanline not read");
+@@ -854,6 +866,7 @@ OJPEGDecodeRaw(TIFF* tif, uint8* buf, tmsize_t cc)
+ 	return(1);
+ }
+ 
++
+ static int
+ OJPEGDecodeScanlines(TIFF* tif, uint8* buf, tmsize_t cc)
+ {

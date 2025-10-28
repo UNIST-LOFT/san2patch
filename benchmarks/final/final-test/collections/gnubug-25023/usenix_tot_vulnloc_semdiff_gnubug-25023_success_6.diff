@@ -1,0 +1,28 @@
+diff --git a/src/pr.c b/src/pr.c
+index 20e863760..396fa99c3 100644
+--- a/src/pr.c
++++ b/src/pr.c
+@@ -1231,9 +1231,13 @@ init_parameters (int number_of_files)
+           col_sep_length = 1;
+           use_col_separator = true;
+         }
+-      /* It's rather pointless to define a TAB separator with column
++// FIXME: Crash CWE-125: Out-of-bounds Read
++       /* It's rather pointless to define a TAB separator with column
+          alignment */
+-      else if (!join_lines && *col_sep_string == '\t')
++      /* Compare the whole string to "\t" instead of dereferencing
++         without checks; this avoids accidental out-of-bounds reads on
++         unusually short/invalid separators. */
++      else if (!join_lines && col_sep_string && strcmp(col_sep_string, "\t") == 0)
+         col_sep_string = column_separator;
+ 
+       truncate_lines = true;
+@@ -1242,6 +1246,7 @@ init_parameters (int number_of_files)
+   else
+     storing_columns = false;
+ 
++
+   /* -J dominates -w in any case */
+   if (join_lines)
+     truncate_lines = false;

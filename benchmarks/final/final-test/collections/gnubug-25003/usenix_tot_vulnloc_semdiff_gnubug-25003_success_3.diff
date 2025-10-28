@@ -1,0 +1,53 @@
+diff --git a/gnulib b/gnulib
+--- a/gnulib
++++ b/gnulib
+@@ -1 +1 @@
+-Subproject commit 6b26660a01125acb394e39ac71635c8df4c110c4
++Subproject commit 6b26660a01125acb394e39ac71635c8df4c110c4-dirty
+diff --git a/src/split.c b/src/split.c
+index f9c99db43..a998e0803 100644
+--- a/src/split.c
++++ b/src/split.c
+@@ -977,15 +977,30 @@ bytes_chunk_extract (uintmax_t k, uintmax_t n, char *buf, size_t bufsize,
+   off_t start;
+   off_t end;
+ 
++  /* Rationale: compute signed difference and validate it before passing to
++     memmove to avoid implicit signed->unsigned conversion and out-of-bounds
++     writes. Also require both that initial_read is known and start is less
++     than initial_read (use &&). Clamp the copy length to bufsize. */
++
+   assert (k && n && k <= n && n <= file_size);
+ 
+   start = (k - 1) * (file_size / n);
+-  end = (k == n) ? file_size : k * (file_size / n);
++// FIXME: Crash CWE-787: Out-of-bounds Write
++   end = (k == n) ? file_size : k * (file_size / n);
+ 
+-  if (initial_read != SIZE_MAX || start < initial_read)
++  if (initial_read != SIZE_MAX && start < (off_t) initial_read)
+     {
+-      memmove (buf, buf + start, initial_read - start);
+-      initial_read -= start;
++      /* Use signed type for the difference to detect negative results */
++      ptrdiff_t diff = (ptrdiff_t) initial_read - (ptrdiff_t) start;
++      if (diff > 0)
++        {
++          size_t len = (size_t) diff;
++          if (len > bufsize)
++            len = bufsize; /* clamp to destination capacity */
++          memmove (buf, buf + start, len);
++          initial_read -= (size_t) start; /* safe because start < initial_read */
++        }
++      /* else: nothing to move */
+     }
+   else
+     {
+@@ -1018,6 +1033,7 @@ bytes_chunk_extract (uintmax_t k, uintmax_t n, char *buf, size_t bufsize,
+     }
+ }
+ 
++
+ typedef struct of_info
+ {
+   char *of_name;

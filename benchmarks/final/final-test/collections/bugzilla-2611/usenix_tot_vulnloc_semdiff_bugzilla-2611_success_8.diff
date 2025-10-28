@@ -1,0 +1,35 @@
+diff --git a/libtiff/tif_ojpeg.c b/libtiff/tif_ojpeg.c
+index 1ccc3f9b..9ac0f176 100644
+--- a/libtiff/tif_ojpeg.c
++++ b/libtiff/tif_ojpeg.c
+@@ -810,9 +810,21 @@ OJPEGDecodeRaw(TIFF* tif, uint8* buf, tmsize_t cc)
+ 	uint8* ocb;
+ 	uint8* ocr;
+ 	uint8* p;
+-	uint32 q;
++// FIXME: Crash CWE-369: Divide By Zero
++ 	uint32 q;
+ 	uint8* r;
+ 	uint8 sx,sy;
++	/* Rationale: Validate pointers and denominators early to avoid divide/modulo by zero
++	   The sanitizer indicated an FPE likely due to cc%sp->bytes_per_line when bytes_per_line==0.
++	   Return an error instead of performing unsafe arithmetic. */
++	if (sp == NULL) {
++		TIFFErrorExt(tif->tif_clientdata,module,"Internal OJPEG state missing");
++		return(0);
++	}
++	if (sp->bytes_per_line == 0) {
++		TIFFErrorExt(tif->tif_clientdata,module,"Invalid bytes_per_line (zero) in OJPEG state");
++		return(0);
++	}
+ 	if (cc%sp->bytes_per_line!=0)
+ 	{
+ 		TIFFErrorExt(tif->tif_clientdata,module,"Fractional scanline not read");
+@@ -854,6 +866,7 @@ OJPEGDecodeRaw(TIFF* tif, uint8* buf, tmsize_t cc)
+ 	return(1);
+ }
+ 
++
+ static int
+ OJPEGDecodeScanlines(TIFF* tif, uint8* buf, tmsize_t cc)
+ {

@@ -1,0 +1,33 @@
+diff --git a/libtiff/tif_ojpeg.c b/libtiff/tif_ojpeg.c
+index 1ccc3f9b..12c919a6 100644
+--- a/libtiff/tif_ojpeg.c
++++ b/libtiff/tif_ojpeg.c
+@@ -810,9 +810,19 @@ OJPEGDecodeRaw(TIFF* tif, uint8* buf, tmsize_t cc)
+ 	uint8* ocb;
+ 	uint8* ocr;
+ 	uint8* p;
+-	uint32 q;
++// FIXME: Crash CWE-369: Divide By Zero
++ 	uint32 q;
+ 	uint8* r;
+ 	uint8 sx,sy;
++	/* Rationale: protect against divide/modulo-by-zero when using
++	   sp->bytes_per_line in cc%sp->bytes_per_line below. If sp is NULL
++	   or bytes_per_line is zero, return an error instead of performing
++	   the modulo that would raise SIGFPE. */
++	if (sp==NULL || sp->bytes_per_line==0)
++	{
++		TIFFErrorExt(tif->tif_clientdata,module,"Invalid/zero bytes_per_line in OJPEG state");
++		return(0);
++	}
+ 	if (cc%sp->bytes_per_line!=0)
+ 	{
+ 		TIFFErrorExt(tif->tif_clientdata,module,"Fractional scanline not read");
+@@ -854,6 +864,7 @@ OJPEGDecodeRaw(TIFF* tif, uint8* buf, tmsize_t cc)
+ 	return(1);
+ }
+ 
++
+ static int
+ OJPEGDecodeScanlines(TIFF* tif, uint8* buf, tmsize_t cc)
+ {

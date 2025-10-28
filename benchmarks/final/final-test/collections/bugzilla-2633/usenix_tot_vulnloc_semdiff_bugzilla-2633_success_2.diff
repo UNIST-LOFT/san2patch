@@ -1,0 +1,59 @@
+diff --git a/tools/tiff2ps.c b/tools/tiff2ps.c
+index ae296e91..d77fcf17 100644
+--- a/tools/tiff2ps.c
++++ b/tools/tiff2ps.c
+@@ -2436,6 +2436,7 @@ PSDataColorContig(FILE* fd, TIFF* tif, uint32 w, uint32 h, int nc)
+ 	uint32 row;
+ 	int breaklen = MAXLINE, es = samplesperpixel - nc;
+ 	tsize_t cc;
++	// FIXME: Crash CWE-125: Out-of-bounds Read
+ 	unsigned char *tf_buf;
+ 	unsigned char *cp, c;
+ 
+@@ -2445,6 +2446,19 @@ PSDataColorContig(FILE* fd, TIFF* tif, uint32 w, uint32 h, int nc)
+ 		TIFFError(filename, "No space for scanline buffer");
+ 		return;
+ 	}
++	/* Rationale: ensure buffer length is sensible relative to samplesperpixel and nc
++	   to avoid reading past the end. If the scanline buffer is smaller than a single
++	   pixel's worth of samples, bail out. Also validate nc is within samplesperpixel. */
++	if ((size_t)tf_bytesperrow < (size_t)samplesperpixel) {
++		TIFFError(filename, "Scanline buffer too small");
++		_TIFFfree((char *) tf_buf);
++		return;
++	}
++	if ((size_t)nc >= (size_t)samplesperpixel) {
++		TIFFError(filename, "Invalid component count");
++		_TIFFfree((char *) tf_buf);
++		return;
++	}
+ 	for (row = 0; row < h; row++) {
+ 		if (TIFFReadScanline(tif, tf_buf, row, 0) < 0)
+ 			break;
+@@ -2459,7 +2473,8 @@ PSDataColorContig(FILE* fd, TIFF* tif, uint32 w, uint32 h, int nc)
+ 		if (alpha) {
+ 			int adjust;
+ 			cc = 0;
+-			for (; cc < tf_bytesperrow; cc += samplesperpixel) {
++			/* Rationale: change loop bound to ensure we don't consume more samples than available */
++			for (; cc + samplesperpixel <= tf_bytesperrow; cc += samplesperpixel) {
+ 				DOBREAK(breaklen, nc, fd);
+ 				/*
+ 				 * For images with alpha, matte against
+@@ -2478,7 +2493,7 @@ PSDataColorContig(FILE* fd, TIFF* tif, uint32 w, uint32 h, int nc)
+ 			}
+ 		} else {
+ 			cc = 0;
+-			for (; cc < tf_bytesperrow; cc += samplesperpixel) {
++			for (; cc + samplesperpixel <= tf_bytesperrow; cc += samplesperpixel) {
+ 				DOBREAK(breaklen, nc, fd);
+ 				switch (nc) {
+ 				case 4: c = *cp++; PUTHEX(c,fd);
+@@ -2493,6 +2508,7 @@ PSDataColorContig(FILE* fd, TIFF* tif, uint32 w, uint32 h, int nc)
+ 	_TIFFfree((char *) tf_buf);
+ }
+ 
++
+ void
+ PSDataColorSeparate(FILE* fd, TIFF* tif, uint32 w, uint32 h, int nc)
+ {

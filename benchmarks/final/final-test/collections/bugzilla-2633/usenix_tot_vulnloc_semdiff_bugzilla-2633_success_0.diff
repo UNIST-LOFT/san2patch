@@ -1,0 +1,61 @@
+diff --git a/tools/tiff2ps.c b/tools/tiff2ps.c
+index ae296e91..8d7e839b 100644
+--- a/tools/tiff2ps.c
++++ b/tools/tiff2ps.c
+@@ -2436,7 +2436,10 @@ PSDataColorContig(FILE* fd, TIFF* tif, uint32 w, uint32 h, int nc)
+ 	uint32 row;
+ 	int breaklen = MAXLINE, es = samplesperpixel - nc;
+ 	tsize_t cc;
+-	unsigned char *tf_buf;
++// Rationale: Check pointer-based offsets before indexing cp to avoid any
++// access beyond tf_buf. This provides a direct guard against the reported
++// off-by-one read without changing the logic flow.
++  	unsigned char *tf_buf;
+ 	unsigned char *cp, c;
+ 
+ 	(void) w;
+@@ -2445,6 +2448,12 @@ PSDataColorContig(FILE* fd, TIFF* tif, uint32 w, uint32 h, int nc)
+ 		TIFFError(filename, "No space for scanline buffer");
+ 		return;
+ 	}
++	/* Ensure the declared scanline size can at least hold the requested samples */
++	if (tf_bytesperrow < (tsize_t)samplesperpixel) {
++		TIFFError(filename, "Scanline size too small for samplesperpixel");
++		_TIFFfree((char *) tf_buf);
++		return;
++	}
+ 	for (row = 0; row < h; row++) {
+ 		if (TIFFReadScanline(tif, tf_buf, row, 0) < 0)
+ 			break;
+@@ -2460,6 +2469,12 @@ PSDataColorContig(FILE* fd, TIFF* tif, uint32 w, uint32 h, int nc)
+ 			int adjust;
+ 			cc = 0;
+ 			for (; cc < tf_bytesperrow; cc += samplesperpixel) {
++				/* Pointer-based safety check before indexing cp[nc] */
++				tsize_t off = (tsize_t)(cp - tf_buf);
++				if (off + nc >= (tsize_t)tf_bytesperrow) /* not enough room for alpha */
++					break;
++				if (off + samplesperpixel > (tsize_t)tf_bytesperrow) /* not enough for full pixel */
++					break;
+ 				DOBREAK(breaklen, nc, fd);
+ 				/*
+ 				 * For images with alpha, matte against
+@@ -2479,6 +2494,10 @@ PSDataColorContig(FILE* fd, TIFF* tif, uint32 w, uint32 h, int nc)
+ 		} else {
+ 			cc = 0;
+ 			for (; cc < tf_bytesperrow; cc += samplesperpixel) {
++				/* Pointer-based safety check before attempting reads */
++				tsize_t off = (tsize_t)(cp - tf_buf);
++				if (off + samplesperpixel > (tsize_t)tf_bytesperrow)
++					break;
+ 				DOBREAK(breaklen, nc, fd);
+ 				switch (nc) {
+ 				case 4: c = *cp++; PUTHEX(c,fd);
+@@ -2493,6 +2512,7 @@ PSDataColorContig(FILE* fd, TIFF* tif, uint32 w, uint32 h, int nc)
+ 	_TIFFfree((char *) tf_buf);
+ }
+ 
++
+ void
+ PSDataColorSeparate(FILE* fd, TIFF* tif, uint32 w, uint32 h, int nc)
+ {

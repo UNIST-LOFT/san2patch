@@ -1,0 +1,96 @@
+diff --git a/tools/tiff2ps.c b/tools/tiff2ps.c
+index ae296e91..f263bf71 100644
+--- a/tools/tiff2ps.c
++++ b/tools/tiff2ps.c
+@@ -2436,7 +2436,8 @@ PSDataColorContig(FILE* fd, TIFF* tif, uint32 w, uint32 h, int nc)
+ 	uint32 row;
+ 	int breaklen = MAXLINE, es = samplesperpixel - nc;
+ 	tsize_t cc;
+-	unsigned char *tf_buf;
++// Use pointer-end checks to prevent reads past the allocated buffer
++  	unsigned char *tf_buf;
+ 	unsigned char *cp, c;
+ 
+ 	(void) w;
+@@ -2456,43 +2457,52 @@ PSDataColorContig(FILE* fd, TIFF* tif, uint32 w, uint32 h, int nc)
+ 		if (bitspersample == 16 && !HOST_BIGENDIAN) {
+ 			PS_FlipBytes(cp, tf_bytesperrow);
+ 		}
+-		if (alpha) {
+-			int adjust;
+-			cc = 0;
+-			for (; cc < tf_bytesperrow; cc += samplesperpixel) {
+-				DOBREAK(breaklen, nc, fd);
+-				/*
+-				 * For images with alpha, matte against
+-				 * a white background; i.e.
+-				 *    Cback * (1 - Aimage)
+-				 * where Cback = 1.
+-				 */
+-				adjust = 255 - cp[nc];
+-				switch (nc) {
+-				case 4: c = *cp++ + adjust; PUTHEX(c,fd);
+-				case 3: c = *cp++ + adjust; PUTHEX(c,fd);
+-				case 2: c = *cp++ + adjust; PUTHEX(c,fd);
+-				case 1: c = *cp++ + adjust; PUTHEX(c,fd);
++		{
++			unsigned char *end = tf_buf + tf_bytesperrow;
++			if (alpha) {
++				int adjust;
++				cc = 0;
++				for (; cc < tf_bytesperrow; cc += samplesperpixel) {
++					/* ensure we have at least samplesperpixel bytes available */
++					if (cp + samplesperpixel > end) break;
++					DOBREAK(breaklen, nc, fd);
++					/*
++					 * For images with alpha, matte against
++					 * a white background; i.e.
++					 *    Cback * (1 - Aimage)
++					 * where Cback = 1.
++					 */
++					if (cp + nc >= end) break; /* prevent cp[nc] from reading past end */
++					adjust = 255 - cp[nc];
++					switch (nc) {
++					case 4: c = *cp++ + adjust; PUTHEX(c,fd);
++					case 3: c = *cp++ + adjust; PUTHEX(c,fd);
++					case 2: c = *cp++ + adjust; PUTHEX(c,fd);
++					case 1: c = *cp++ + adjust; PUTHEX(c,fd);
++					}
++					cp += es;
+ 				}
+-				cp += es;
+-			}
+-		} else {
+-			cc = 0;
+-			for (; cc < tf_bytesperrow; cc += samplesperpixel) {
+-				DOBREAK(breaklen, nc, fd);
+-				switch (nc) {
+-				case 4: c = *cp++; PUTHEX(c,fd);
+-				case 3: c = *cp++; PUTHEX(c,fd);
+-				case 2: c = *cp++; PUTHEX(c,fd);
+-				case 1: c = *cp++; PUTHEX(c,fd);
++			} else {
++				cc = 0;
++				for (; cc < tf_bytesperrow; cc += samplesperpixel) {
++					/* ensure we have at least samplesperpixel bytes available */
++					if (cp + samplesperpixel > end) break;
++					DOBREAK(breaklen, nc, fd);
++					switch (nc) {
++					case 4: c = *cp++; PUTHEX(c,fd);
++					case 3: c = *cp++; PUTHEX(c,fd);
++					case 2: c = *cp++; PUTHEX(c,fd);
++					case 1: c = *cp++; PUTHEX(c,fd);
++					}
++					cp += es;
+ 				}
+-				cp += es;
+ 			}
+ 		}
+ 	}
+ 	_TIFFfree((char *) tf_buf);
+ }
+ 
++
+ void
+ PSDataColorSeparate(FILE* fd, TIFF* tif, uint32 w, uint32 h, int nc)
+ {

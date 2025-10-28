@@ -1,0 +1,38 @@
+diff --git a/gnulib b/gnulib
+--- a/gnulib
++++ b/gnulib
+@@ -1 +1 @@
+-Subproject commit 405cd675384221b541b460c43de26d159914fe0a
++Subproject commit 405cd675384221b541b460c43de26d159914fe0a-dirty
+diff --git a/src/shred.c b/src/shred.c
+index a317c4439..2d43e7959 100644
+--- a/src/shred.c
++++ b/src/shred.c
+@@ -285,12 +285,17 @@ fillpattern (int type, unsigned char *r, size_t size)
+ 
+   bits |= bits << 12;
+   r[0] = (bits >> 4) & 255;
+-  r[1] = (bits >> 8) & 255;
++// FIXME: Crash CWE-787: Out-of-bounds Write
++   r[1] = (bits >> 8) & 255;
+   r[2] = bits & 255;
+   for (i = 3; i < size / 2; i *= 2)
+     memcpy (r + i, r, i);
++  /* Use memmove for the final copy because the source and destination
++     ranges may overlap for certain small sizes (e.g. size < 2*i).  Using
++     memmove guarantees well-defined behavior and avoids the ASan-reported
++     memcpy-param-overlap. */
+   if (i < size)
+-    memcpy (r + i, r, size - i);
++    memmove (r + i, r, size - i);
+ 
+   /* Invert the first bit of every sector. */
+   if (type & 0x1000)
+@@ -298,6 +303,7 @@ fillpattern (int type, unsigned char *r, size_t size)
+       r[i] ^= 0x80;
+ }
+ 
++
+ /*
+  * Generate a 6-character (+ nul) pass name string
+  * FIXME: allow translation of "random".

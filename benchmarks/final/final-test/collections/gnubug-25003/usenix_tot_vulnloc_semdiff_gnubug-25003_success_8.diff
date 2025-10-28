@@ -1,0 +1,48 @@
+diff --git a/gnulib b/gnulib
+--- a/gnulib
++++ b/gnulib
+@@ -1 +1 @@
+-Subproject commit 6b26660a01125acb394e39ac71635c8df4c110c4
++Subproject commit 6b26660a01125acb394e39ac71635c8df4c110c4-dirty
+diff --git a/src/split.c b/src/split.c
+index f9c99db43..9baed8712 100644
+--- a/src/split.c
++++ b/src/split.c
+@@ -974,18 +974,25 @@ static void
+ bytes_chunk_extract (uintmax_t k, uintmax_t n, char *buf, size_t bufsize,
+                      size_t initial_read, off_t file_size)
+ {
++  /* Rationale: Prevent implicit signed-to-unsigned conversion and negative
++     length being passed to memmove. Change the branch condition so that we
++     only attempt to memmove when we have a valid initial_read and a non-
++     negative start that is strictly less than initial_read. Cast start to
++     size_t when used as an offset/length after validating start >= 0. This
++     is a minimal change to avoid the CWE-190 -> CWE-787 issue. */
+   off_t start;
+   off_t end;
+ 
+   assert (k && n && k <= n && n <= file_size);
+ 
+   start = (k - 1) * (file_size / n);
+-  end = (k == n) ? file_size : k * (file_size / n);
++// FIXME: Crash CWE-787: Out-of-bounds Write
++   end = (k == n) ? file_size : k * (file_size / n);
+ 
+-  if (initial_read != SIZE_MAX || start < initial_read)
++  if (initial_read != SIZE_MAX && start >= 0 && (size_t) start < initial_read)
+     {
+-      memmove (buf, buf + start, initial_read - start);
+-      initial_read -= start;
++      memmove (buf, buf + (size_t) start, initial_read - (size_t) start);
++      initial_read -= (size_t) start;
+     }
+   else
+     {
+@@ -1018,6 +1025,7 @@ bytes_chunk_extract (uintmax_t k, uintmax_t n, char *buf, size_t bufsize,
+     }
+ }
+ 
++
+ typedef struct of_info
+ {
+   char *of_name;

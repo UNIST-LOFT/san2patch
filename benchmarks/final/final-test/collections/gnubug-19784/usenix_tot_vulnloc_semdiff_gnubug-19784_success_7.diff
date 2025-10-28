@@ -1,0 +1,23 @@
+diff --git a/src/make-prime-list.c b/src/make-prime-list.c
+index 68c972a84..8754effd0 100644
+--- a/src/make-prime-list.c
++++ b/src/make-prime-list.c
+@@ -209,8 +209,12 @@ main (int argc, char **argv)
+       process_prime (&prime_list[nprimes++], p);
+ 
+       for (j = (p*p - 3)/2; j < size; j+= p)
+-        sieve[j] = 0;
++// FIXME: Crash CWE-125: Out-of-bounds Read
++         sieve[j] = 0;
+ 
++      /* Guard to avoid incrementing i past end of sieve */
++      if (i + 1 >= size)
++        break;
+       while (i < size && sieve[++i] == 0)
+         ;
+     }
+@@ -225,3 +229,4 @@ main (int argc, char **argv)
+ 
+   return EXIT_SUCCESS;
+ }
++

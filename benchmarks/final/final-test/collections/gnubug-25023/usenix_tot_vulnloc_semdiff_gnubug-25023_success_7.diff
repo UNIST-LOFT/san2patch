@@ -1,0 +1,39 @@
+diff --git a/src/pr.c b/src/pr.c
+index 20e863760..18b41d4f5 100644
+--- a/src/pr.c
++++ b/src/pr.c
+@@ -1231,16 +1231,31 @@ init_parameters (int number_of_files)
+           col_sep_length = 1;
+           use_col_separator = true;
+         }
+-      /* It's rather pointless to define a TAB separator with column
++// FIXME: Crash CWE-125: Out-of-bounds Read
++       /* It's rather pointless to define a TAB separator with column
+          alignment */
+-      else if (!join_lines && *col_sep_string == '\t')
+-        col_sep_string = column_separator;
++      else if (!join_lines && col_sep_string != NULL && strcmp(col_sep_string, "\t") == 0)
++        {
++          /* If the separator is exactly a single TAB, switch to the
++             canonical column_separator and ensure the reported length
++             is consistent. Using strcmp avoids indexing beyond the
++             first character when col_sep_string might be unexpectedly
++             short. */
++          col_sep_string = column_separator;
++          col_sep_length = 1;
++        }
+ 
+       truncate_lines = true;
+       tabify_output = true;
+     }
+   else
+     storing_columns = false;
++/* Rationale:
++   Use strcmp to verify the separator equals the single-character string "\t" rather than
++   indexing blindly. This avoids out-of-bounds reads on tiny or malformed separator buffers.
++   Also set col_sep_length consistently when replacing the separator. This is a small, local
++   change that preserves functionality while preventing OOB access.
++*/
+ 
+   /* -J dominates -w in any case */
+   if (join_lines)

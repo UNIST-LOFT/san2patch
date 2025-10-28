@@ -1,0 +1,54 @@
+diff --git a/gnulib b/gnulib
+--- a/gnulib
++++ b/gnulib
+@@ -1 +1 @@
+-Subproject commit 6b26660a01125acb394e39ac71635c8df4c110c4
++Subproject commit 6b26660a01125acb394e39ac71635c8df4c110c4-dirty
+diff --git a/src/split.c b/src/split.c
+index f9c99db43..d7a5f4967 100644
+--- a/src/split.c
++++ b/src/split.c
+@@ -980,12 +980,30 @@ bytes_chunk_extract (uintmax_t k, uintmax_t n, char *buf, size_t bufsize,
+   assert (k && n && k <= n && n <= file_size);
+ 
+   start = (k - 1) * (file_size / n);
+-  end = (k == n) ? file_size : k * (file_size / n);
+-
+-  if (initial_read != SIZE_MAX || start < initial_read)
++// FIXME: Crash CWE-787: Out-of-bounds Write
++   end = (k == n) ? file_size : k * (file_size / n);
++
++  /* Rationale: avoid implicit signed-to-unsigned conversion when
++     computing the copy length. Compute the difference as a signed
++     value (ptrdiff_t), validate it is positive and does not exceed
++     the buffer capacity, and only then perform memmove. This prevents
++     negative lengths from being converted to very large size_t values. */
++  if (initial_read != SIZE_MAX && start < (off_t) initial_read)
+     {
+-      memmove (buf, buf + start, initial_read - start);
+-      initial_read -= start;
++      ptrdiff_t copy_len = (ptrdiff_t) initial_read - (ptrdiff_t) start;
++      if (copy_len > 0)
++        {
++          size_t ucopy = (size_t) copy_len;
++          if (ucopy > bufsize)
++            die (EXIT_FAILURE, 0, "internal error: copy length %zu exceeds buffer capacity %zu", ucopy, bufsize);
++          memmove (buf, buf + start, ucopy);
++          initial_read = ucopy;
++        }
++      else
++        {
++          /* nothing to move */
++          initial_read = 0;
++        }
+     }
+   else
+     {
+@@ -1018,6 +1036,7 @@ bytes_chunk_extract (uintmax_t k, uintmax_t n, char *buf, size_t bufsize,
+     }
+ }
+ 
++
+ typedef struct of_info
+ {
+   char *of_name;

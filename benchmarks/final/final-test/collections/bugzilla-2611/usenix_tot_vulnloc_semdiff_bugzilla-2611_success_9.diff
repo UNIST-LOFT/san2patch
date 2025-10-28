@@ -1,0 +1,31 @@
+diff --git a/libtiff/tif_ojpeg.c b/libtiff/tif_ojpeg.c
+index 1ccc3f9b..4c9b74c2 100644
+--- a/libtiff/tif_ojpeg.c
++++ b/libtiff/tif_ojpeg.c
+@@ -810,7 +810,17 @@ OJPEGDecodeRaw(TIFF* tif, uint8* buf, tmsize_t cc)
+ 	uint8* ocb;
+ 	uint8* ocr;
+ 	uint8* p;
+-	uint32 q;
++// Rationale: Check for NULL state and zero bytes_per_line to avoid division/modulo by zero
++	if (sp == NULL) {
++		TIFFErrorExt(tif->tif_clientdata,module,"Internal error: missing OJPEG state");
++		return(0);
++	}
++	if (sp->bytes_per_line == 0) {
++		TIFFErrorExt(tif->tif_clientdata,module,"Invalid TIFF: bytes_per_line is zero");
++		return(0);
++	}
++// FIXME: Crash CWE-369: Divide By Zero
++ 	uint32 q;
+ 	uint8* r;
+ 	uint8 sx,sy;
+ 	if (cc%sp->bytes_per_line!=0)
+@@ -854,6 +864,7 @@ OJPEGDecodeRaw(TIFF* tif, uint8* buf, tmsize_t cc)
+ 	return(1);
+ }
+ 
++
+ static int
+ OJPEGDecodeScanlines(TIFF* tif, uint8* buf, tmsize_t cc)
+ {

@@ -1,0 +1,54 @@
+diff --git a/gnulib b/gnulib
+--- a/gnulib
++++ b/gnulib
+@@ -1 +1 @@
+-Subproject commit 6b26660a01125acb394e39ac71635c8df4c110c4
++Subproject commit 6b26660a01125acb394e39ac71635c8df4c110c4-dirty
+diff --git a/src/split.c b/src/split.c
+index f9c99db43..f83297e3a 100644
+--- a/src/split.c
++++ b/src/split.c
+@@ -980,12 +980,30 @@ bytes_chunk_extract (uintmax_t k, uintmax_t n, char *buf, size_t bufsize,
+   assert (k && n && k <= n && n <= file_size);
+ 
+   start = (k - 1) * (file_size / n);
+-  end = (k == n) ? file_size : k * (file_size / n);
+-
+-  if (initial_read != SIZE_MAX || start < initial_read)
++// FIXME: Crash CWE-787: Out-of-bounds Write
++   end = (k == n) ? file_size : k * (file_size / n);
++
++  /* Rationale: ensure we never compute a negative length passed to memmove.
++     Validate that start < initial_read before subtracting, clamp the
++     copy length to the destination buffer (bufsize), and handle empty or
++     invalid ranges deterministically. */
++  if (initial_read != SIZE_MAX && start < (off_t) initial_read)
++    {
++      size_t copy_len = initial_read - (size_t) start;
++      if (copy_len > bufsize)
++        copy_len = bufsize;
++      memmove (buf, buf + start, copy_len);
++      initial_read = copy_len;
++    }
++  else if (initial_read != SIZE_MAX && start == (off_t) initial_read)
+     {
+-      memmove (buf, buf + start, initial_read - start);
+-      initial_read -= start;
++      /* requested range is empty; nothing to copy */
++      initial_read = 0;
++    }
++  else if (initial_read != SIZE_MAX /* start > initial_read */)
++    {
++      /* start is beyond available bytes: treat as fatal error */
++      die (EXIT_FAILURE, 0, "invalid range: start > available bytes");
+     }
+   else
+     {
+@@ -1018,6 +1036,7 @@ bytes_chunk_extract (uintmax_t k, uintmax_t n, char *buf, size_t bufsize,
+     }
+ }
+ 
++
+ typedef struct of_info
+ {
+   char *of_name;

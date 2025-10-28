@@ -1,0 +1,27 @@
+diff --git a/src/pr.c b/src/pr.c
+index 20e863760..46f6cb507 100644
+--- a/src/pr.c
++++ b/src/pr.c
+@@ -1231,10 +1231,19 @@ init_parameters (int number_of_files)
+           col_sep_length = 1;
+           use_col_separator = true;
+         }
+-      /* It's rather pointless to define a TAB separator with column
++// FIXME: Crash CWE-125: Out-of-bounds Read
++       /* It's rather pointless to define a TAB separator with column
+          alignment */
+-      else if (!join_lines && *col_sep_string == '\t')
+-        col_sep_string = column_separator;
++      else if (!join_lines && col_sep_string != NULL && *col_sep_string == '\t')
++        {
++          /* Rationale: When we replace the user separator with the canonical
++             column_separator, ensure the recorded length is bounded and
++             accurately initialized to avoid later reads past the terminator.
++             Use a bounded length computation (strnlen) to defend against
++             unusually long or unterminated inputs. */
++          col_sep_string = column_separator;
++          col_sep_length = strnlen (column_separator, 64);
++        }
+ 
+       truncate_lines = true;
+       tabify_output = true;

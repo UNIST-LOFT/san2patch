@@ -1,0 +1,57 @@
+diff --git a/tools/tiff2ps.c b/tools/tiff2ps.c
+index ae296e91..65b10dbf 100644
+--- a/tools/tiff2ps.c
++++ b/tools/tiff2ps.c
+@@ -2436,7 +2436,8 @@ PSDataColorContig(FILE* fd, TIFF* tif, uint32 w, uint32 h, int nc)
+ 	uint32 row;
+ 	int breaklen = MAXLINE, es = samplesperpixel - nc;
+ 	tsize_t cc;
+-	unsigned char *tf_buf;
++// FIXME: Crash CWE-125: Out-of-bounds Read
++ 	unsigned char *tf_buf;
+ 	unsigned char *cp, c;
+ 
+ 	(void) w;
+@@ -2456,11 +2457,22 @@ PSDataColorContig(FILE* fd, TIFF* tif, uint32 w, uint32 h, int nc)
+ 		if (bitspersample == 16 && !HOST_BIGENDIAN) {
+ 			PS_FlipBytes(cp, tf_bytesperrow);
+ 		}
++		/*
++		 * Add per-access bounds checks before dereferencing cp to
++		 * ensure we never read past the allocated scanline buffer.
++		 * This defends against cases where tf_bytesperrow is smaller
++		 * than expected and would otherwise cause an OOB read.
++		 */
+ 		if (alpha) {
+ 			int adjust;
+ 			cc = 0;
+ 			for (; cc < tf_bytesperrow; cc += samplesperpixel) {
+ 				DOBREAK(breaklen, nc, fd);
++				/* ensure there are at least (nc+1) bytes available */
++				if ((size_t)(cp - tf_buf) + (size_t)nc >= (size_t)tf_bytesperrow) {
++					/* malformed scanline; stop processing this image */
++					break;
++				}
+ 				/*
+ 				 * For images with alpha, matte against
+ 				 * a white background; i.e.
+@@ -2480,6 +2492,11 @@ PSDataColorContig(FILE* fd, TIFF* tif, uint32 w, uint32 h, int nc)
+ 			cc = 0;
+ 			for (; cc < tf_bytesperrow; cc += samplesperpixel) {
+ 				DOBREAK(breaklen, nc, fd);
++				/* ensure there are at least samplesperpixel bytes available */
++				if ((size_t)(cp - tf_buf) + (size_t)samplesperpixel > (size_t)tf_bytesperrow) {
++					/* malformed scanline; stop processing this image */
++					break;
++				}
+ 				switch (nc) {
+ 				case 4: c = *cp++; PUTHEX(c,fd);
+ 				case 3: c = *cp++; PUTHEX(c,fd);
+@@ -2493,6 +2510,7 @@ PSDataColorContig(FILE* fd, TIFF* tif, uint32 w, uint32 h, int nc)
+ 	_TIFFfree((char *) tf_buf);
+ }
+ 
++
+ void
+ PSDataColorSeparate(FILE* fd, TIFF* tif, uint32 w, uint32 h, int nc)
+ {

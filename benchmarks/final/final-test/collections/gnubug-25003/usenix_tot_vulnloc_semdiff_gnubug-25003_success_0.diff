@@ -1,0 +1,43 @@
+diff --git a/gnulib b/gnulib
+--- a/gnulib
++++ b/gnulib
+@@ -1 +1 @@
+-Subproject commit 6b26660a01125acb394e39ac71635c8df4c110c4
++Subproject commit 6b26660a01125acb394e39ac71635c8df4c110c4-dirty
+diff --git a/src/split.c b/src/split.c
+index f9c99db43..cfa9e3582 100644
+--- a/src/split.c
++++ b/src/split.c
+@@ -980,12 +980,19 @@ bytes_chunk_extract (uintmax_t k, uintmax_t n, char *buf, size_t bufsize,
+   assert (k && n && k <= n && n <= file_size);
+ 
+   start = (k - 1) * (file_size / n);
+-  end = (k == n) ? file_size : k * (file_size / n);
+-
+-  if (initial_read != SIZE_MAX || start < initial_read)
++// FIXME: Crash CWE-787: Out-of-bounds Write
++   end = (k == n) ? file_size : k * (file_size / n);
++
++  /* Rationale: Ensure we never call memmove with an inverted interval
++     (start >= initial_read). Use an explicit check and compute a
++     size_t length before calling memmove to avoid signed-to-unsigned
++     conversion that yields a huge length. */
++  if (initial_read != SIZE_MAX && (size_t) start < initial_read)
+     {
+-      memmove (buf, buf + start, initial_read - start);
+-      initial_read -= start;
++      size_t len = initial_read - (size_t) start;
++      if (len != 0)
++        memmove (buf, buf + start, len);
++      initial_read = len;
+     }
+   else
+     {
+@@ -1018,6 +1025,7 @@ bytes_chunk_extract (uintmax_t k, uintmax_t n, char *buf, size_t bufsize,
+     }
+ }
+ 
++
+ typedef struct of_info
+ {
+   char *of_name;

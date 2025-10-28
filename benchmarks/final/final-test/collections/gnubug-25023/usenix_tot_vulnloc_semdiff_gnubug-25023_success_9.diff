@@ -1,0 +1,43 @@
+diff --git a/src/pr.c b/src/pr.c
+index 20e863760..6ad03a74a 100644
+--- a/src/pr.c
++++ b/src/pr.c
+@@ -1228,13 +1228,21 @@ init_parameters (int number_of_files)
+           else
+             col_sep_string = column_separator;
+ 
+-          col_sep_length = 1;
++          /* Compute actual separator length rather than assuming 1 to
++             avoid reading past the terminator (fix CWE-125). */
++          col_sep_length = col_sep_string ? strlen(col_sep_string) : 0;
+           use_col_separator = true;
+         }
+-      /* It's rather pointless to define a TAB separator with column
++// FIXME: Crash CWE-125: Out-of-bounds Read
++       /* It's rather pointless to define a TAB separator with column
+          alignment */
+-      else if (!join_lines && *col_sep_string == '\t')
+-        col_sep_string = column_separator;
++      else if (!join_lines && col_sep_string && *col_sep_string == '\t')
++        {
++          /* Replace explicit TAB separator with the real column separator
++             and ensure we have the correct length to prevent OOB reads. */
++          col_sep_string = column_separator;
++          col_sep_length = col_sep_string ? strlen(col_sep_string) : 0;
++        }
+ 
+       truncate_lines = true;
+       tabify_output = true;
+@@ -1242,6 +1250,12 @@ init_parameters (int number_of_files)
+   else
+     storing_columns = false;
+ 
++/* Rationale: Added NULL checks before dereferencing col_sep_string and
++   computed col_sep_length using strlen whenever we set/override
++   col_sep_string. This ensures later code that indexes the separator
++   will stay within the separator bounds, preventing the one-byte
++   out-of-bounds read reported by AddressSanitizer (CWE-125). */
++
+   /* -J dominates -w in any case */
+   if (join_lines)
+     truncate_lines = false;

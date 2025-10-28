@@ -1,0 +1,31 @@
+diff --git a/src/make-prime-list.c b/src/make-prime-list.c
+index 68c972a84..685a15a70 100644
+--- a/src/make-prime-list.c
++++ b/src/make-prime-list.c
+@@ -195,8 +195,9 @@ main (int argc, char **argv)
+ 
+   size = (limit-1)/2;
+   /* sieve[i] represents 3+2*i */
+-  sieve = xalloc (size);
+-  memset (sieve, 1, size);
++  /* Allocate an extra byte as a sentinel so reads like sieve[++i] are safe */
++  sieve = xalloc (size + 1);
++  memset (sieve, 1, size + 1);
+ 
+   prime_list = xalloc (size * sizeof (*prime_list));
+   nprimes = 0;
+@@ -209,7 +210,8 @@ main (int argc, char **argv)
+       process_prime (&prime_list[nprimes++], p);
+ 
+       for (j = (p*p - 3)/2; j < size; j+= p)
+-        sieve[j] = 0;
++// FIXME: Crash CWE-125: Out-of-bounds Read
++         sieve[j] = 0;
+ 
+       while (i < size && sieve[++i] == 0)
+         ;
+@@ -225,3 +227,4 @@ main (int argc, char **argv)
+ 
+   return EXIT_SUCCESS;
+ }
++

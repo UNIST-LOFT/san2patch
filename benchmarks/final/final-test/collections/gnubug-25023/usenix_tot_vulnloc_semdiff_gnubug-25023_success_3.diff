@@ -1,0 +1,35 @@
+diff --git a/src/pr.c b/src/pr.c
+index 20e863760..e58549f86 100644
+--- a/src/pr.c
++++ b/src/pr.c
+@@ -1231,10 +1231,15 @@ init_parameters (int number_of_files)
+           col_sep_length = 1;
+           use_col_separator = true;
+         }
+-      /* It's rather pointless to define a TAB separator with column
++// FIXME: Crash CWE-125: Out-of-bounds Read
++       /* It's rather pointless to define a TAB separator with column
+          alignment */
+-      else if (!join_lines && *col_sep_string == '\t')
+-        col_sep_string = column_separator;
++      else if (!join_lines && col_sep_string != NULL && col_sep_string[0] == '\t')
++        {
++          col_sep_string = column_separator;
++          /* Ensure length matches the new separator to avoid later overruns */
++          col_sep_length = strlen(column_separator);
++        }
+ 
+       truncate_lines = true;
+       tabify_output = true;
+@@ -1242,6 +1247,11 @@ init_parameters (int number_of_files)
+   else
+     storing_columns = false;
+ 
++/* Rationale: Added a null/empty guard before dereferencing col_sep_string to
++   prevent reading past the terminator. When we replace the separator with
++   column_separator we also update col_sep_length to match the actual string
++   length, avoiding off-by-one accesses in later code. */
++
+   /* -J dominates -w in any case */
+   if (join_lines)
+     truncate_lines = false;

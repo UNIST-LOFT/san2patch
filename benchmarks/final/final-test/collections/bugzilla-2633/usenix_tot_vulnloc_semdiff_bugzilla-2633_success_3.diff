@@ -1,0 +1,63 @@
+diff --git a/tools/tiff2ps.c b/tools/tiff2ps.c
+index ae296e91..4315768c 100644
+--- a/tools/tiff2ps.c
++++ b/tools/tiff2ps.c
+@@ -2436,14 +2436,45 @@ PSDataColorContig(FILE* fd, TIFF* tif, uint32 w, uint32 h, int nc)
+ 	uint32 row;
+ 	int breaklen = MAXLINE, es = samplesperpixel - nc;
+ 	tsize_t cc;
+-	unsigned char *tf_buf;
++	// FIXME: Crash CWE-125: Out-of-bounds Read
++ 	unsigned char *tf_buf;
+ 	unsigned char *cp, c;
+ 
+ 	(void) w;
+-	tf_buf = (unsigned char *) _TIFFmalloc(tf_bytesperrow);
+-	if (tf_buf == NULL) {
+-		TIFFError(filename, "No space for scanline buffer");
+-		return;
++	/* Rationale: prefer TIFF-provided scanline size helper when available.
++	   Fall back to safe protected arithmetic if the helper returns 0 or
++	   an invalid value. This minimizes changes while using a canonical
++	   size computation when possible. */
++	{
++		/* try to get canonical scanline size */
++		tsize_t scanline = TIFFScanlineSize(tif);
++		size_t alloc_size = 0;
++		if (scanline > 0) {
++			/* ensure it fits in size_t */
++			if ((tsize_t)((size_t)-1) < scanline) {
++				TIFFError(filename, "Scanline size too large");
++				return;
++			}
++			alloc_size = (size_t)scanline;
++		} else {
++			/* fallback: compute required bytes safely */
++			u_int64_t bits = (u_int64_t)w * (u_int64_t)samplesperpixel * (u_int64_t)bitspersample;
++			u_int64_t required_bytes = (bits + 7) / 8; /* round up to whole bytes */
++			if (required_bytes == 0 || required_bytes > (u_int64_t)((size_t)-1)) {
++				TIFFError(filename, "Invalid image dimensions or overflow computing scanline size");
++				return;
++			}
++			alloc_size = (size_t)required_bytes;
++		}
++		/* allocate at least as much as tf_bytesperrow to remain compatible */
++		if ((size_t)tf_bytesperrow > alloc_size)
++			alloc_size = (size_t)tf_bytesperrow;
++
++		tf_buf = (unsigned char *) _TIFFmalloc(alloc_size);
++		if (tf_buf == NULL) {
++			TIFFError(filename, "No space for scanline buffer");
++			return;
++		}
+ 	}
+ 	for (row = 0; row < h; row++) {
+ 		if (TIFFReadScanline(tif, tf_buf, row, 0) < 0)
+@@ -2493,6 +2524,7 @@ PSDataColorContig(FILE* fd, TIFF* tif, uint32 w, uint32 h, int nc)
+ 	_TIFFfree((char *) tf_buf);
+ }
+ 
++
+ void
+ PSDataColorSeparate(FILE* fd, TIFF* tif, uint32 w, uint32 h, int nc)
+ {

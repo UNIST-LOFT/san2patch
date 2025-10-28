@@ -1,0 +1,34 @@
+diff --git a/tools/tiff2ps.c b/tools/tiff2ps.c
+index ae296e91..22f67b60 100644
+--- a/tools/tiff2ps.c
++++ b/tools/tiff2ps.c
+@@ -2436,15 +2436,27 @@ PSDataColorContig(FILE* fd, TIFF* tif, uint32 w, uint32 h, int nc)
+ 	uint32 row;
+ 	int breaklen = MAXLINE, es = samplesperpixel - nc;
+ 	tsize_t cc;
+-	unsigned char *tf_buf;
++// Rationale: allocate one extra byte and initialize it so a single-byte read past
++// the nominal length (if present) cannot access unallocated memory. This is a
++// minimal mitigation when callers may read a trailing sentinel byte.
++// FIXME: Crash CWE-125: Out-of-bounds Read
++ 	unsigned char *tf_buf;
+ 	unsigned char *cp, c;
+ 
+ 	(void) w;
+-	tf_buf = (unsigned char *) _TIFFmalloc(tf_bytesperrow);
++	/* allocate an extra byte to guard against a single-byte over-read */
++	if (tf_bytesperrow >= (tsize_t) ((size_t) -1)) {
++		/* extremely large allocation would overflow; fail gracefully */
++		TIFFError(filename, "Requested scanline buffer size too large");
++		return;
++	}
++	tf_buf = (unsigned char *) _TIFFmalloc(tf_bytesperrow + 1);
+ 	if (tf_buf == NULL) {
+ 		TIFFError(filename, "No space for scanline buffer");
+ 		return;
+ 	}
++	/* initialize the sentinel byte to a safe value */
++	tf_buf[tf_bytesperrow] = 0;
+ 	for (row = 0; row < h; row++) {
+ 		if (TIFFReadScanline(tif, tf_buf, row, 0) < 0)
+ 			break;

@@ -1,0 +1,51 @@
+diff --git a/gnulib b/gnulib
+--- a/gnulib
++++ b/gnulib
+@@ -1 +1 @@
+-Subproject commit 6b26660a01125acb394e39ac71635c8df4c110c4
++Subproject commit 6b26660a01125acb394e39ac71635c8df4c110c4-dirty
+diff --git a/src/split.c b/src/split.c
+index f9c99db43..fecc0d716 100644
+--- a/src/split.c
++++ b/src/split.c
+@@ -980,12 +980,27 @@ bytes_chunk_extract (uintmax_t k, uintmax_t n, char *buf, size_t bufsize,
+   assert (k && n && k <= n && n <= file_size);
+ 
+   start = (k - 1) * (file_size / n);
+-  end = (k == n) ? file_size : k * (file_size / n);
+-
+-  if (initial_read != SIZE_MAX || start < initial_read)
++// FIXME: Crash CWE-787: Out-of-bounds Write
++   end = (k == n) ? file_size : k * (file_size / n);
++
++  /* Rationale: Prevent signed-to-unsigned conversion that can turn a
++     negative logical length into a huge size_t passed to memmove.
++     Ensure initial_read is valid and start < initial_read, compute a
++     safe to_copy value and clamp it to bufsize before calling memmove. */
++  if (initial_read != SIZE_MAX && start < (off_t)initial_read)
+     {
+-      memmove (buf, buf + start, initial_read - start);
+-      initial_read -= start;
++      size_t orig_needed = initial_read - (size_t)start;
++      size_t to_copy = orig_needed;
++      if (to_copy > bufsize)
++        to_copy = bufsize;
++      memmove (buf, buf + start, to_copy);
++      /* If we clamped the copy (to_copy < orig_needed), the buffer no
++         longer contains all requested bytes, mark initial_read as
++         exhausted. Otherwise subtract the consumed prefix. */
++      if (to_copy < orig_needed)
++        initial_read = SIZE_MAX;
++      else
++        initial_read = orig_needed;
+     }
+   else
+     {
+@@ -1018,6 +1033,7 @@ bytes_chunk_extract (uintmax_t k, uintmax_t n, char *buf, size_t bufsize,
+     }
+ }
+ 
++
+ typedef struct of_info
+ {
+   char *of_name;

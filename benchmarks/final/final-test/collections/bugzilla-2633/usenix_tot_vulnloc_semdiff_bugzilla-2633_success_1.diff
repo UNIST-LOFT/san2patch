@@ -1,0 +1,54 @@
+diff --git a/tools/tiff2ps.c b/tools/tiff2ps.c
+index ae296e91..d6319afd 100644
+--- a/tools/tiff2ps.c
++++ b/tools/tiff2ps.c
+@@ -2436,10 +2436,22 @@ PSDataColorContig(FILE* fd, TIFF* tif, uint32 w, uint32 h, int nc)
+ 	uint32 row;
+ 	int breaklen = MAXLINE, es = samplesperpixel - nc;
+ 	tsize_t cc;
+-	unsigned char *tf_buf;
++// FIXME: Crash CWE-125: Out-of-bounds Read
++ 	unsigned char *tf_buf;
+ 	unsigned char *cp, c;
+ 
+ 	(void) w;
++	/* Rationale: validate potentially malformed TIFF tag values and
++	   computed scanline size before allocation/processing to avoid
++	   out-of-bounds reads. If tags are invalid, bail out early. */
++	if (samplesperpixel <= 0 || nc <= 0 || nc > samplesperpixel) {
++		TIFFError(filename, "Invalid SamplesPerPixel/colour count");
++		return;
++	}
++	if (tf_bytesperrow <= 0 || tf_bytesperrow < (tsize_t)samplesperpixel) {
++		TIFFError(filename, "Scanline size too small");
++		return;
++	}
+ 	tf_buf = (unsigned char *) _TIFFmalloc(tf_bytesperrow);
+ 	if (tf_buf == NULL) {
+ 		TIFFError(filename, "No space for scanline buffer");
+@@ -2467,6 +2479,8 @@ PSDataColorContig(FILE* fd, TIFF* tif, uint32 w, uint32 h, int nc)
+ 				 *    Cback * (1 - Aimage)
+ 				 * where Cback = 1.
+ 				 */
++				/* additional safety: ensure accessing cp[nc] is in-bounds */
++				if (cc + nc >= tf_bytesperrow) break;
+ 				adjust = 255 - cp[nc];
+ 				switch (nc) {
+ 				case 4: c = *cp++ + adjust; PUTHEX(c,fd);
+@@ -2480,6 +2494,8 @@ PSDataColorContig(FILE* fd, TIFF* tif, uint32 w, uint32 h, int nc)
+ 			cc = 0;
+ 			for (; cc < tf_bytesperrow; cc += samplesperpixel) {
+ 				DOBREAK(breaklen, nc, fd);
++				/* safety: ensure we have space for nc samples */
++				if (cc + nc >= tf_bytesperrow) break;
+ 				switch (nc) {
+ 				case 4: c = *cp++; PUTHEX(c,fd);
+ 				case 3: c = *cp++; PUTHEX(c,fd);
+@@ -2493,6 +2509,7 @@ PSDataColorContig(FILE* fd, TIFF* tif, uint32 w, uint32 h, int nc)
+ 	_TIFFfree((char *) tf_buf);
+ }
+ 
++
+ void
+ PSDataColorSeparate(FILE* fd, TIFF* tif, uint32 w, uint32 h, int nc)
+ {

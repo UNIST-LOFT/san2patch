@@ -1,0 +1,52 @@
+diff --git a/gnulib b/gnulib
+--- a/gnulib
++++ b/gnulib
+@@ -1 +1 @@
+-Subproject commit 6b26660a01125acb394e39ac71635c8df4c110c4
++Subproject commit 6b26660a01125acb394e39ac71635c8df4c110c4-dirty
+diff --git a/src/split.c b/src/split.c
+index f9c99db43..185b4bd0e 100644
+--- a/src/split.c
++++ b/src/split.c
+@@ -979,13 +979,29 @@ bytes_chunk_extract (uintmax_t k, uintmax_t n, char *buf, size_t bufsize,
+ 
+   assert (k && n && k <= n && n <= file_size);
+ 
++  /* Rationale: compute copy lengths in a signed intermediate (ssize_t) and
++     ensure we only call memmove when the computed length is positive. This
++     prevents negative signed lengths being converted to large size_t values
++     and causing out-of-bounds writes (CWE-787). */
+   start = (k - 1) * (file_size / n);
+-  end = (k == n) ? file_size : k * (file_size / n);
++// FIXME: Crash CWE-787: Out-of-bounds Write
++   end = (k == n) ? file_size : k * (file_size / n);
+ 
+-  if (initial_read != SIZE_MAX || start < initial_read)
++  if (initial_read != SIZE_MAX && start < (off_t) initial_read)
+     {
+-      memmove (buf, buf + start, initial_read - start);
+-      initial_read -= start;
++      ssize_t to_copy = (ssize_t) initial_read - (ssize_t) start;
++      if (to_copy > 0)
++        {
++          size_t s_to_copy = (size_t) to_copy;
++          if (s_to_copy > bufsize)
++            s_to_copy = bufsize;
++          memmove (buf, buf + start, s_to_copy);
++          initial_read -= (size_t) start;
++        }
++      else
++        {
++          initial_read = 0;
++        }
+     }
+   else
+     {
+@@ -1018,6 +1034,7 @@ bytes_chunk_extract (uintmax_t k, uintmax_t n, char *buf, size_t bufsize,
+     }
+ }
+ 
++
+ typedef struct of_info
+ {
+   char *of_name;

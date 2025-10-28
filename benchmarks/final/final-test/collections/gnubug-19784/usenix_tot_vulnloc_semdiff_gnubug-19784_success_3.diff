@@ -1,0 +1,37 @@
+diff --git a/src/make-prime-list.c b/src/make-prime-list.c
+index 68c972a84..619b9c63c 100644
+--- a/src/make-prime-list.c
++++ b/src/make-prime-list.c
+@@ -209,10 +209,23 @@ main (int argc, char **argv)
+       process_prime (&prime_list[nprimes++], p);
+ 
+       for (j = (p*p - 3)/2; j < size; j+= p)
+-        sieve[j] = 0;
+-
+-      while (i < size && sieve[++i] == 0)
+-        ;
++// FIXME: Crash CWE-125: Out-of-bounds Read
++         sieve[j] = 0;
++
++      /* Rationale: avoid the unsafe compound conditional that increments i
++         inside the condition and can cause reading sieve[size].  Check
++         bounds for i+1 before incrementing, and stop scanning when we
++         reach the end. */
++      do
++        {
++          if (i + 1 >= size)
++            {
++              i = size;
++              break;
++            }
++          ++i;
++        }
++      while (sieve[i] == 0);
+     }
+ 
+   output_primes (prime_list, nprimes);
+@@ -225,3 +238,4 @@ main (int argc, char **argv)
+ 
+   return EXIT_SUCCESS;
+ }
++
