@@ -7,7 +7,8 @@
  286 |   bits |= bits << 12;
  287 |   r[0] = (bits >> 4) & 255;
  288 |   r[1] = (bits >> 8) & 255;
- 289 |   r[2] = bits & 255; // PATCH LOCATION 290 |   for (i = 3; i < size / 2; i *= 2)
+ 289 |   r[2] = bits & 255; // PATCH LOCATION
+ 290 |   for (i = 3; i < size / 2; i *= 2)
  291 |     memcpy (r + i, r, i);
  292 |   if (i < size)
  293 |     memcpy (r + i, r, size - i);

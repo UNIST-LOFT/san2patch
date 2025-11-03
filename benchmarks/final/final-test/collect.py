@@ -19,7 +19,7 @@ for bug_id in os.listdir("vuln"):
             for i in range(start_line, end_line + 1):
                 line_content = lines[i - 1].rstrip('\n')
                 if i == fix_line - 1:
-                    f.write(f"{i:4d} | {line_content} // PATCH LOCATION")
+                    f.write(f"{i:4d} | {line_content} // PATCH LOCATION\n")
                 else:
                     f.write(f"{i:4d} | {line_content}\n")
 
