@@ -43,7 +43,7 @@
  213 |  // PATCH LOCATION
  214 |       do {
  215 |           i++;
- 216 |       } while (i < size && sieve[i] == 0);
+ 216 |       } while (<PATCH> && sieve[i] == 0);
  217 |     }
  218 | 
  219 |   output_primes (prime_list, nprimes);

@@ -10,7 +10,7 @@
  982 |   start = (k - 1) * (file_size / n);
  983 |   end = (k == n) ? file_size : k * (file_size / n);
  984 |  // PATCH LOCATION
- 985 |   if (initial_read != SIZE_MAX || start < initial_read)
+ 985 |   if (<PATCH>)
  986 |     {
  987 |       if (start < 0 || initial_read < start) {
  988 |         fprintf(stderr, "Negative size encountered in memmove operation\n");
