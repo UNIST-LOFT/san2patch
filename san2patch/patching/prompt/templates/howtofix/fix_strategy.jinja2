@@ -57,7 +57,8 @@ Input:
 {# Instruction about previous successful patches to avoid duplicates #}
 {% if prev_correct_patches %}
 <Previous_Successful_Patches>
-    Note: There are previous successful patches. Do NOT propose a patch that is identical or semantically equivalent to any of these.
+    Note: There are previous successful patches. Do NOT propose a patch that is identical or semantically equivalent to any of these. 
+    If a distinct minimal fix is not possible, propose a plausible patch that only needs to make the tests pass — mark it “plausible” and briefly explain why no distinct minimal fix is feasible.
 </Previous_Successful_Patches>
 {% endif %}
 

@@ -54,10 +54,9 @@ Output format:
 {% if prev_correct_patches %}
 <Previous_Successful_Patches>
     <Note>
-        The inputs below list previously accepted (successful) patches for this vulnerability.
-        Important: DO NOT produce a patch that is identical or semantically equivalent to any of these patches.
-        Produce a semantically different fix. You may use a different minimal-check style (different guard, check order, or small logic change),
-        but keep the patch small. If you cannot produce a different minimal patch, explain why.
+        Below are previously accepted patches.
+        Do not reproduce any patch that is identical or semantically equivalent. Generate a semantically distinct minimal fix (different guard, check order, or small logic change) and keep changes small.
+        If a distinct minimal fix is not possible, generate a plausible patch that only needs to make the tests pass — mark it “plausible” and briefly explain why no distinct minimal fix is feasible.
     </Note>
 
     {# To limit tokens, we show only a truncated preview (first 4k chars) of each previous patch.
