@@ -1,0 +1,56 @@
+ 171 | int
+ 172 | main (int argc, char **argv)
+ 173 | {
+ 174 |   int limit;
+ 175 | 
+ 176 |   char *sieve;
+ 177 |   size_t size, i;
+ 178 | 
+ 179 |   struct prime *prime_list;
+ 180 |   unsigned nprimes;
+ 181 | 
+ 182 |   if (argc != 2)
+ 183 |     {
+ 184 |       fprintf (stderr, "Usage: %s LIMIT\n"
+ 185 |                "Produces a list of odd primes <= LIMIT\n", argv[0]);
+ 186 |       return EXIT_FAILURE;
+ 187 |     }
+ 188 |   limit = atoi (argv[1]);
+ 189 |   if (limit < 3)
+ 190 |     return EXIT_SUCCESS;
+ 191 | 
+ 192 |   /* Make limit odd */
+ 193 |   if ( !(limit & 1))
+ 194 |     limit--;
+ 195 | 
+ 196 |   size = (limit-1)/2;
+ 197 |   /* sieve[i] represents 3+2*i */
+ 198 |   sieve = xalloc (size);
+ 199 |   memset (sieve, 1, size);
+ 200 | 
+ 201 |   prime_list = xalloc (size * sizeof (*prime_list));
+ 202 |   nprimes = 0;
+ 203 | 
+ 204 |   for (i = 0; i < size;)
+ 205 |     {
+ 206 |       unsigned p = 3+2*i;
+ 207 |       unsigned j;
+ 208 | 
+ 209 |       process_prime (&prime_list[nprimes++], p);
+ 210 | 
+ 211 |       for (j = (p*p - 3)/2; j < size; j+= p)
+ 212 |         sieve[j] = 0;
+ 213 |  // PATCH LOCATION 214 |       do {
+ 215 |           i++;
+ 216 |       } while (i < size && sieve[i] == 0);
+ 217 |     }
+ 218 | 
+ 219 |   output_primes (prime_list, nprimes);
+ 220 | 
+ 221 |   if (ferror (stdout) + fclose (stdout))
+ 222 |     {
+ 223 |       fprintf (stderr, "write error: %s\n", strerror (errno));
+ 224 |       return EXIT_FAILURE;
+ 225 |     }
+ 226 | 
+ 227 |   return EXIT_SUCCESS;

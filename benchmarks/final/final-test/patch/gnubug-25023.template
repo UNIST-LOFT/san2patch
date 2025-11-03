@@ -1,0 +1,108 @@
+1190 | static void
+1191 | init_parameters (int number_of_files)
+1192 | {
+1193 |   int chars_used_by_number = 0;
+1194 | 
+1195 |   lines_per_body = lines_per_page - lines_per_header - lines_per_footer;
+1196 |   if (lines_per_body <= 0)
+1197 |     {
+1198 |       extremities = false;
+1199 |       keep_FF = true;
+1200 |     }
+1201 |   if (extremities == false)
+1202 |     lines_per_body = lines_per_page;
+1203 | 
+1204 |   if (double_space)
+1205 |     lines_per_body = lines_per_body / 2;
+1206 | 
+1207 |   /* If input is stdin, cannot print parallel files.  BSD dumps core
+1208 |      on this. */
+1209 |   if (number_of_files == 0)
+1210 |     parallel_files = false;
+1211 | 
+1212 |   if (parallel_files)
+1213 |     columns = number_of_files;
+1214 | 
+1215 |   /* One file, multi columns down: -b option is set to get a consistent
+1216 |      formulation with "FF set by hand" in input files. */
+1217 |   if (storing_columns)
+1218 |     balance_columns = true;
+1219 | 
+1220 |   /* Tabification is assumed for multiple columns. */
+1221 |   if (columns > 1)
+1222 |     {
+1223 |       if (!use_col_separator)
+1224 |         {
+1225 |           /* Use default separator */
+1226 |           if (join_lines)
+1227 |             col_sep_string = line_separator;
+1228 |           else
+1229 |             col_sep_string = column_separator;
+1230 | 
+1231 |           col_sep_length = 1;
+1232 |           use_col_separator = true;
+1233 |         }
+1234 |       /* It's rather pointless to define a TAB separator with column
+1235 |          alignment */ // PATCH LOCATION1236 |       else if (!join_lines && *col_sep_string == '\t')
+1237 |         col_sep_string = column_separator;
+1238 | 
+1239 |       truncate_lines = true;
+1240 |       tabify_output = true;
+1241 |     }
+1242 |   else
+1243 |     storing_columns = false;
+1244 | 
+1245 |   /* -J dominates -w in any case */
+1246 |   if (join_lines)
+1247 |     truncate_lines = false;
+1248 | 
+1249 |   if (numbered_lines)
+1250 |     {
+1251 |       int chars_per_default_tab = 8;
+1252 | 
+1253 |       line_count = start_line_num;
+1254 | 
+1255 |       /* To allow input tab-expansion (-e sensitive) use:
+1256 |          if (number_separator == input_tab_char)
+1257 |            number_width = chars_per_number
+1258 |              + TAB_WIDTH (chars_per_input_tab, chars_per_number);   */
+1259 | 
+1260 |       /* Estimate chars_per_text without any margin and keep it constant. */
+1261 |       if (number_separator == '\t')
+1262 |         number_width = (chars_per_number
+1263 |                         + TAB_WIDTH (chars_per_default_tab, chars_per_number));
+1264 |       else
+1265 |         number_width = chars_per_number + 1;
+1266 | 
+1267 |       /* The number is part of the column width unless we are
+1268 |          printing files in parallel. */
+1269 |       if (parallel_files)
+1270 |         chars_used_by_number = number_width;
+1271 |     }
+1272 | 
+1273 |   int sep_chars, useful_chars;
+1274 |   if (INT_MULTIPLY_WRAPV (columns - 1, col_sep_length, &sep_chars))
+1275 |     sep_chars = INT_MAX;
+1276 |   if (INT_SUBTRACT_WRAPV (chars_per_line - chars_used_by_number, sep_chars,
+1277 |                           &useful_chars))
+1278 |     useful_chars = 0;
+1279 |   chars_per_column = useful_chars / columns;
+1280 | 
+1281 |   if (chars_per_column < 1)
+1282 |     die (EXIT_FAILURE, 0, _("page width too narrow"));
+1283 | 
+1284 |   if (numbered_lines)
+1285 |     {
+1286 |       free (number_buff);
+1287 |       number_buff = xmalloc (MAX (chars_per_number,
+1288 |                                   INT_STRLEN_BOUND (line_number)) + 1);
+1289 |     }
+1290 | 
+1291 |   /* Pick the maximum between the tab width and the width of an
+1292 |      escape sequence.
+1293 |      The width of an escape sequence (4) isn't the lower limit any longer.
+1294 |      We've to use 8 as the lower limit, if we use chars_per_default_tab = 8
+1295 |      to expand a tab which is not an input_tab-char. */
+1296 |   free (clump_buff);
+1297 |   clump_buff = xmalloc (MAX (8, chars_per_input_tab));
+1298 | }

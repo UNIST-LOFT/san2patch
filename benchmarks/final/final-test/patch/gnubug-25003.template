@@ -1,0 +1,46 @@
+ 973 | static void
+ 974 | bytes_chunk_extract (uintmax_t k, uintmax_t n, char *buf, size_t bufsize,
+ 975 |                      size_t initial_read, off_t file_size)
+ 976 | {
+ 977 |   off_t start;
+ 978 |   off_t end;
+ 979 | 
+ 980 |   assert (k && n && k <= n && n <= file_size);
+ 981 | 
+ 982 |   start = (k - 1) * (file_size / n);
+ 983 |   end = (k == n) ? file_size : k * (file_size / n);
+ 984 |  // PATCH LOCATION 985 |   if (initial_read != SIZE_MAX || start < initial_read)
+ 986 |     {
+ 987 |       if (start < 0 || initial_read < start) {
+ 988 |         fprintf(stderr, "Negative size encountered in memmove operation\n");
+ 989 |         exit(EXIT_FAILURE);
+ 990 |       }
+ 991 |       memmove (buf, buf + start, initial_read - start);
+ 992 |       initial_read -= start;
+ 993 |     }
+ 994 |   else
+ 995 |     {
+ 996 |       if (lseek (STDIN_FILENO, start, SEEK_CUR) < 0)
+ 997 |         die (EXIT_FAILURE, errno, "%s", quotef (infile));
+ 998 |       initial_read = SIZE_MAX;
+ 999 |     }
+1000 | 
+1001 |   while (start < end)
+1002 |     {
+1003 |       size_t n_read;
+1004 |       if (initial_read != SIZE_MAX)
+1005 |         {
+1006 |           n_read = initial_read;
+1007 |           initial_read = SIZE_MAX;
+1008 |         }
+1009 |       else
+1010 |         {
+1011 |           n_read = safe_read (STDIN_FILENO, buf, bufsize);
+1012 |           if (n_read == SAFE_READ_ERROR)
+1013 |             die (EXIT_FAILURE, errno, "%s", quotef (infile));
+1014 |         }
+1015 |       if (n_read == 0)
+1016 |         break; /* eof.  */
+1017 |       n_read = MIN (n_read, end - start);
+1018 |       if (full_write (STDOUT_FILENO, buf, n_read) != n_read
+1019 |           && ! ignorable (errno))

@@ -1,0 +1,62 @@
+2433 | void
+2434 | PSDataColorContig(FILE* fd, TIFF* tif, uint32 w, uint32 h, int nc)
+2435 | {
+2436 | 	uint32 row;
+2437 | 	int breaklen = MAXLINE, es = samplesperpixel - nc;
+2438 | 	tsize_t cc;
+2439 | 	unsigned char *tf_buf;
+2440 | 	unsigned char *cp, c; // PATCH LOCATION2441 | 
+2442 | 	(void) w;
+2443 | 	tf_buf = (unsigned char *) _TIFFmalloc(tf_bytesperrow);
+2444 | 	if (tf_buf == NULL) {
+2445 | 		TIFFError(filename, "No space for scanline buffer");
+2446 | 		return;
+2447 | 	}
+2448 | 	for (row = 0; row < h; row++) {
+2449 | 		if (TIFFReadScanline(tif, tf_buf, row, 0) < 0)
+2450 | 			break;
+2451 | 		cp = tf_buf;
+2452 | 		/*
+2453 | 		 * for 16 bits, the two bytes must be most significant
+2454 | 		 * byte first
+2455 | 		 */
+2456 | 		if (bitspersample == 16 && !HOST_BIGENDIAN) {
+2457 | 			PS_FlipBytes(cp, tf_bytesperrow);
+2458 | 		}
+2459 | 		if (alpha) {
+2460 | 			int adjust;
+2461 | 			cc = 0;
+2462 | 			for (; cc < tf_bytesperrow; cc += samplesperpixel) {
+2463 | 				DOBREAK(breaklen, nc, fd);
+2464 | 				/*
+2465 | 				 * For images with alpha, matte against
+2466 | 				 * a white background; i.e.
+2467 | 				 *    Cback * (1 - Aimage)
+2468 | 				 * where Cback = 1.
+2469 | 				 */
+2470 | 				adjust = 255 - cp[nc];
+2471 | 				switch (nc) {
+2472 | 				case 4: c = *cp++ + adjust; PUTHEX(c,fd);
+2473 | 				case 3: c = *cp++ + adjust; PUTHEX(c,fd);
+2474 | 				case 2: c = *cp++ + adjust; PUTHEX(c,fd);
+2475 | 				case 1: c = *cp++ + adjust; PUTHEX(c,fd);
+2476 | 				}
+2477 | 				cp += es;
+2478 | 			}
+2479 | 		} else {
+2480 | 			cc = 0;
+2481 | 			for (; cc < tf_bytesperrow; cc += samplesperpixel) {
+2482 | 				DOBREAK(breaklen, nc, fd);
+2483 | 				switch (nc) {
+2484 | 				case 4: c = *cp++; PUTHEX(c,fd);
+2485 | 				case 3: c = *cp++; PUTHEX(c,fd);
+2486 | 				case 2: c = *cp++; PUTHEX(c,fd);
+2487 | 				case 1: c = *cp++; PUTHEX(c,fd);
+2488 | 				}
+2489 | 				cp += es;
+2490 | 			}
+2491 | 		}
+2492 | 	}
+2493 | 	_TIFFfree((char *) tf_buf);
+2494 | }
+2495 | 
