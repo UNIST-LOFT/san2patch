@@ -14,18 +14,13 @@ for bug_id in os.listdir("vuln"):
         start_line = locs[0]["start_line"]
         end_line = locs[0]["end_line"]
         fix_line = locs[0]["fix_line"]
-        # with open(os.path.join("repo", f"{subject}_{bid}", file_path), "r") as f:
-        #     lines = f.readlines()
-        with open(os.path.join("patch", f"{bid}.template"), "r") as f:
-            patch_lines = f.readlines()
-            results = list()
-            for line in patch_lines:
-                # Remove line number
-                cleaned_line = re.sub(r'^\s*\d+\s*\| ', '', line)
-                results.append(cleaned_line)
-        with open(os.path.join("patch", f"{bid}.new.template"), "w") as f:
-            for line in results:
-                f.write(line)
+        with open(os.path.join("repo", f"{subject}_{bid}", file_path), "r") as f:
+            lines = f.readlines()
+        
+        with open(os.path.join("patch", f"{bid}.orig"), "w") as f:
+            for i in range(start_line, end_line + 1):
+                line_content = lines[i - 1]
+                f.write(line_content)
                 
                 
 

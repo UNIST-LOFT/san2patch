@@ -7,7 +7,7 @@ fillpattern (int type, unsigned char *r, size_t size)
   bits |= bits << 12;
   r[0] = (bits >> 4) & 255;
   r[1] = (bits >> 8) & 255;
-  r[2] = bits & 255; // PATCH LOCATION
+  r[2] = bits & 255; 
   for (i = 3; i < <PATCH>; i *= 2)
     memcpy (r + i, r, i);
   if (i < size)

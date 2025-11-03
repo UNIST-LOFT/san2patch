@@ -5,7 +5,7 @@ PSDataColorContig(FILE* fd, TIFF* tif, uint32 w, uint32 h, int nc)
 	int breaklen = MAXLINE, es = samplesperpixel - nc;
 	tsize_t cc;
 	unsigned char *tf_buf;
-	unsigned char *cp, c; // PATCH LOCATION
+	unsigned char *cp, c; 
  if (<PATCH>) return;
 	(void) w;
 	tf_buf = (unsigned char *) _TIFFmalloc(tf_bytesperrow);

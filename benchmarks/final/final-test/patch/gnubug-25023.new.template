@@ -43,7 +43,7 @@ init_parameters (int number_of_files)
           use_col_separator = true;
         }
       /* It's rather pointless to define a TAB separator with column
-         alignment */ // PATCH LOCATION
+         alignment */ 
       else if (!join_lines && *col_sep_string == '\t' && <PATCH>)
         col_sep_string = column_separator;
 

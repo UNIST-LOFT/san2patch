@@ -9,7 +9,7 @@ bytes_chunk_extract (uintmax_t k, uintmax_t n, char *buf, size_t bufsize,
 
   start = (k - 1) * (file_size / n);
   end = (k == n) ? file_size : k * (file_size / n);
- // PATCH LOCATION
+
   if (<PATCH>)
     {
       if (start < 0 || initial_read < start) {
@@ -45,3 +45,7 @@ bytes_chunk_extract (uintmax_t k, uintmax_t n, char *buf, size_t bufsize,
       n_read = MIN (n_read, end - start);
       if (full_write (STDOUT_FILENO, buf, n_read) != n_read
           && ! ignorable (errno))
+        die (EXIT_FAILURE, errno, "%s", quotef ("-"));
+      start += n_read;
+    }
+}

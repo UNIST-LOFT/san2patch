@@ -40,7 +40,7 @@ main (int argc, char **argv)
 
       for (j = (p*p - 3)/2; j < size; j+= p)
         sieve[j] = 0;
- // PATCH LOCATION
+ 
       do {
           i++;
       } while (<PATCH> && sieve[i] == 0);
@@ -55,3 +55,4 @@ main (int argc, char **argv)
     }
 
   return EXIT_SUCCESS;
+}
