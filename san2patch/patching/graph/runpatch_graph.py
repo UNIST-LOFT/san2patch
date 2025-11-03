@@ -315,12 +315,20 @@ def generate_runpatch_graph(
             # patched_function = patched_function.strip()
             if file_name[0] == "/" or file_name[0] == "\\":
                 file_name = file_name[1:]
-
+            
+            if "patch_original" in state.vuln_data:
+                if state.vuln_data["patch_original"]:
+                    original_function = state.vuln_data["patch_original"]
+            
+            logger.debug(
+                f"Patching file: {file_name}\nPatched Function:\n{patched_function}\n")
+            
             with open(os.path.join(state.package_location, file_name), "r") as f:
                 source_code = f.read()
 
             patched_code = ""
             if source_code.find(original_function):
+                logger.info(f"Replacing original function in {file_name}...")
                 patched_code = source_code.replace(original_function, patched_function)
 
             with open(os.path.join(state.package_location, file_name), "w") as f:
@@ -466,6 +474,10 @@ def generate_runpatch_graph(
             pv.logger.warning("Vulnerability test failed.")
             genpatch_state.patch_result = state.patch_success[genpatch_id] = (
                 ExperimentResEnum.VULN_FAILED.value
+            )
+        else:
+            genpatch_state.patch_result = state.patch_success[genpatch_id] = (
+                ExperimentResEnum.SUCCESS.value
             )
 
         return VulnerabilityTestState(ret_code=ret_code, err_msg=err_msg)

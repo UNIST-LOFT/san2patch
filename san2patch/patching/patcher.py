@@ -153,12 +153,20 @@ class San2Patcher(BaseCommander):
             self.logger.debug(f"Predefined fix locations: {predefined_locs}")
             self.logger.debug(f"Prev correct patches: {prev_correct_patches}")
             patch_template_file = os.path.join("/app/benchmarks/final/final-test/patch", f"{self.vuln_id}.new.template")
+            patch_original_file = os.path.join("/app/benchmarks/final/final-test/patch", f"{self.vuln_id}.orig")
             patch_template = None
             if os.path.exists(patch_template_file):
                 with open(patch_template_file, "r") as f:
                     patch_template = f.read()
                 self.logger.debug(f"Using patch template from {patch_template_file}")
+                
+            patch_original = None
+            if os.path.exists(patch_original_file):
+                with open(patch_original_file, "r") as f:
+                    patch_original = f.read()
+                self.logger.debug(f"Using patch original from {patch_original_file}")
             self.vuln_data["patch_template"] = patch_template
+            self.vuln_data["patch_original"] = patch_original
             self.vuln_data["prev_correct_patches"] = prev_correct_patches
 
             res_json = patch_graph.invoke(

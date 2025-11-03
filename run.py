@@ -223,14 +223,16 @@ def run_patch_one(
                     collected_metadata.append((saved_diff_path, saved_artifact_path))
                     logger.info(f"Collected new successful patch #{patch_id} for {vuln_id}")
                     if halt_on_success:
-                        if len(collected_successes) >= 10:
+                        if len(collected_successes) >= 20:
                             logger.info(f"Halting on first success as per configuration.")
                             return True
 
                 elif TestEvalRetCode.FUNC_FAILED.value in res.patch_success:
                     ret_code = TestEvalRetCode.FUNC_FAILED.value
                     err_msg = ""
+                    logger.info(f"Functionality test failed for vuln_id: {vuln_id}")
                 else:
+                    logger.info(f"Patching failed for vuln_id: {vuln_id},")
                     patch_success = res.patch_success
                     ret_code = max(patch_success, key=patch_success.count)
                     err_msg = ""
@@ -284,7 +286,7 @@ def run_patch_one(
                 aim_run["result"] = TestEvalRetCode.EXCEPTION_RAISED.value
                 aim_run["error"] = str(e)
 
-                logger.error(f"Exception occurred: {e}. Retrying...")
+                logger.error(f"Exception occurred: {e}. Retrying...", exc_info=True)
                 if raise_exception:
                     raise e
 
