@@ -12,7 +12,7 @@
  812 | 	uint8* p;
  813 | 	uint32 q;
  814 | 	uint8* r; // PATCH LOCATION
- 815 | 	uint8 sx,sy;
+ 815 | 	uint8 sx,sy; if (<PATCH>) return -1;
  816 | 	if (cc%sp->bytes_per_line!=0)
  817 | 	{
  818 | 		TIFFErrorExt(tif->tif_clientdata,module,"Fractional scanline not read");

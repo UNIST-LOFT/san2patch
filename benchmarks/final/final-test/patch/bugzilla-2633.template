@@ -6,7 +6,7 @@
 2438 | 	tsize_t cc;
 2439 | 	unsigned char *tf_buf;
 2440 | 	unsigned char *cp, c; // PATCH LOCATION
-2441 | 
+2441 |  if (<PATCH>) return;
 2442 | 	(void) w;
 2443 | 	tf_buf = (unsigned char *) _TIFFmalloc(tf_bytesperrow);
 2444 | 	if (tf_buf == NULL) {
