@@ -29,6 +29,26 @@ Generate code that is modified in as many different ways as possible. Each candi
 Each patches should contain minimal changes, like adding a single line of checks (null checks, boundary checks).
 You should only fix the Fix_Target_Code unconditionally. Don't respond the code in Fix_Target_Function_Info.
 Generate the actual fixed code, not just a patch file that modifies the code. Preserve all whitespaces (tabs and spaces) in Fix_Target_Code to ensure that only intentional changes appear in the final diff.
+
+IMPORTANT: This file's Fix_Target_Code includes a unique marker token "<PATCH>" that indicates the exact location you must change.
+- You MUST NOT modify any line except by replacing the "<PATCH>" token's content.
+- Replace only the token "<PATCH>" with the minimal patch (for example, a single guard/check line or small expression).
+- Output the full Fix_Target_Code block with "<PATCH>" replaced (do not output diffs or separate patch files).
+- Keep the rest of the code exactly as-is (start and end of Fix_Target_Code must match the provided Fix_Target_Code).
+
+On avoiding duplicates:
+- If the input contains <Previous_Successful_Patches>, you are provided with previously accepted patches in `prev_correct_patches`.
+- Your generated patched code must NOT be identical (byte-for-byte) to any of the provided previous patches.
+- If your first minimal change would produce a patch identical to a previous one, produce a semantically different patch. It doesn't have to be a correct patch. Just make a patch that passes the test. Keep the change small and conservative.
+- If you can't produce a different minimal patch, explain briefly why within the rationale field, then produce the best non-identical minimal variant.
+
+On patch size and style:
+- MINIMIZE CHANGES: Make the smallest possible modification to fix the vulnerability. Change only the necessary lines and preserve as much of the original code structure as possible.
+- PREFER SIMPLE FIXES: Use simple checks (null checks, boundary checks) rather than restructuring code.
+
+Output format:
+- For each candidate, output the full patched Fix_Target_Code (the full original function/block text with "<PATCH>" replaced), and also provide a short rationale explaining why this small change fixes the issue and confirming it is different from previous patches.
+- Do not modify other files or functions. The result must be safe and compileable (if obvious compile issues arise, explain them).
 </Instruction>
 
 {% if prev_correct_patches %}

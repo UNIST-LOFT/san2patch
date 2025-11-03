@@ -4,21 +4,40 @@
 </Goal>
 
 <Instruction>
-    Please follow these steps to generate the security fix:
+    Please follow these steps to generate the security fix strategy and a concise description of the exact code change to apply:
     1. Analyze the vulnerability details (type, cause, impact).
     2. Consult recommended guidelines (e.g., MISRA C, SEI CERT, Secure Coding in C/C++, CWE database) for mitigation strategies.
-    3. Based on these guidelines, propose a fix strategy that resolves the vulnerability at the specified location(s).
-    4. Clearly explain the rationale behind your fix strategy.
+    3. Propose a fix strategy that resolves the vulnerability at the specified location(s).
+    4. Provide a concise "patch change" description that exactly states what will replace any <PATCH> tokens (if present).
+    5. Provide a clear rationale for the chosen fix strategy.
 </Instruction>
 
 <Approach>
     - First, identify the specific vulnerability type or CWE ID (if available).
     - Refer to standard coding guidelines (MISRA C, SEI CERT, Secure Coding in C/C++, CWE) to determine the best remediation approach.
-    - Apply the fix in a way that ensures correctness, maintainability, and clarity.
+    - Prefer minimal, local changes (null checks, bounds checks, simple guards) rather than large restructures.
 </Approach>
 
 Input:
 {{vuln_info_final | to_xml("Vulnerability_Info")}}
+
+{# If a patch template is provided, show it explicitly so the model can follow it. #}
+{% if patch_template %}
+<Provided_Patch_Template>
+<![CDATA[
+{{ patch_template }}
+]]>
+</Provided_Patch_Template>
+
+<Important_Template_Rules>
+- The provided template contains one or more exact marker tokens: "<PATCH>".
+- IF a Provided_Patch_Template is present, YOU MUST ONLY MODIFY the content that replaces the "<PATCH>" token(s).
+  - Do NOT change other lines, function signatures, braces, or surrounding code.
+  - Keep indentation and whitespace consistent with the template.
+  - Each replacement should be as small as possible (prefer single-line guards or checks).
+- If multiple "<PATCH>" tokens exist, propose replacements for each token in order.
+</Important_Template_Rules>
+{% endif %}
 
 <Where-To-Fix_Info>
     <Where-To-Fix_Fix_Location>
@@ -34,3 +53,40 @@ Input:
         {{fix_loc.rationale}}
     </Where-To-Fix_Rationale>
 </Where-To-Fix_Info>
+
+{# Instruction about previous successful patches to avoid duplicates #}
+{% if prev_correct_patches %}
+<Previous_Successful_Patches>
+    Note: There are previous successful patches. Do NOT propose a patch that is identical or semantically equivalent to any of these.
+</Previous_Successful_Patches>
+{% endif %}
+
+<Fix_Strategy>
+    <Summary>
+        Provide a concise summary of the chosen fix strategy (1-3 sentences).
+    </Summary>
+
+    <Detailed_Strategy>
+        Explain the fix approach step-by-step and cite relevant CWE/secure-coding guideline where applicable.
+    </Detailed_Strategy>
+
+    <Patch_Change>
+        {% if patch_template %}
+        For each <PATCH> token in the Provided_Patch_Template, provide a short, exact replacement string that will substitute the token.
+        Output the replacements in order, labeled Replacement_1, Replacement_2, etc. Provide only the replacement code snippet (not the full function).
+        Example:
+        Replacement_1: if (<PATCH>) return -1; ==> if (ptr == NULL) return -1;
+        Replacement_2: for (i = 0; i < <PATCH>; i++) ==> for (i = 0; i < length; i++)
+        {% else %}
+        If no template was provided, describe the minimal change(s) you will apply inside the Fix_Target_Code shown earlier: e.g., "Add a NULL check at the top of the function that returns -1 on error."
+        {% endif %}
+    </Patch_Change>
+
+    <Rationale>
+        Explain why these replacements fix the vulnerability and why they are minimal and safe.
+    </Rationale>
+
+    <Safety_Notes>
+        Mention any possible impacts on functionality or cases where this minimal change might be insufficient.
+    </Safety_Notes>
+</Fix_Strategy>
