@@ -1,0 +1,38 @@
+diff --git a/libtiff/tif_ojpeg.c b/libtiff/tif_ojpeg.c
+index 1ccc3f9b..e41d83e9 100644
+--- a/libtiff/tif_ojpeg.c
++++ b/libtiff/tif_ojpeg.c
+@@ -798,7 +798,6 @@ OJPEGDecode(TIFF* tif, uint8* buf, tmsize_t cc, uint16 s)
+ 	}
+ 	return(1);
+ }
+-
+ static int
+ OJPEGDecodeRaw(TIFF* tif, uint8* buf, tmsize_t cc)
+ {
+@@ -811,8 +810,8 @@ OJPEGDecodeRaw(TIFF* tif, uint8* buf, tmsize_t cc)
+ 	uint8* ocr;
+ 	uint8* p;
+ 	uint32 q;
+-	uint8* r;
+-	uint8 sx,sy;
++	uint8* r; 
++	uint8 sx,sy; if (sp==NULL || sp->bytes_per_line==0 || sp->subsampling_ver==0 || sp->subsampling_hor==0 || sp->subsampling_convert_ylinelen==0 || sp->subsampling_convert_clinelen==0 || sp->subsampling_convert_clinelenout==0 || sp->subsampling_convert_clines==0) return -1;
+ 	if (cc%sp->bytes_per_line!=0)
+ 	{
+ 		TIFFErrorExt(tif->tif_clientdata,module,"Fractional scanline not read");
+@@ -854,6 +853,14 @@ OJPEGDecodeRaw(TIFF* tif, uint8* buf, tmsize_t cc)
+ 	return(1);
+ }
+ 
++/* Rationale:
++   This minimal patch ensures that critical denominator-like fields (sp and
++   various sampling/line-length/count fields) are non-zero before any
++   arithmetic (modulo/division/loop bounds) that would otherwise trigger
++   a divide-by-zero. It returns early if any required field is zero.
++   This candidate differs from others by checking a broad set of fields
++   for zero-ness without emitting an explicit TIFFErrorExt message here.
++*/
+ static int
+ OJPEGDecodeScanlines(TIFF* tif, uint8* buf, tmsize_t cc)
+ {

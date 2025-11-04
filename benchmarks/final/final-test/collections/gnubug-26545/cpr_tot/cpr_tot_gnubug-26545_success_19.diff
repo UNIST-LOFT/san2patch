@@ -1,0 +1,32 @@
+diff --git a/gnulib b/gnulib
+--- a/gnulib
++++ b/gnulib
+@@ -1 +1 @@
+-Subproject commit 405cd675384221b541b460c43de26d159914fe0a
++Subproject commit 405cd675384221b541b460c43de26d159914fe0a-dirty
+diff --git a/src/shred.c b/src/shred.c
+index a317c4439..abec6d60c 100644
+--- a/src/shred.c
++++ b/src/shred.c
+@@ -286,8 +286,8 @@ fillpattern (int type, unsigned char *r, size_t size)
+   bits |= bits << 12;
+   r[0] = (bits >> 4) & 255;
+   r[1] = (bits >> 8) & 255;
+-  r[2] = bits & 255;
+-  for (i = 3; i < size / 2; i *= 2)
++  r[2] = bits & 255; 
++  for (i = 3; i < (size + 1) / 2 /* use ceil(size/2) to ensure copies do not overlap */; i *= 2)
+     memcpy (r + i, r, i);
+   if (i < size)
+     memcpy (r + i, r, size - i);
+@@ -298,6 +298,10 @@ fillpattern (int type, unsigned char *r, size_t size)
+       r[i] ^= 0x80;
+ }
+ 
++/* Rationale: Changing the loop bound to (size + 1) / 2 (ceil(size/2)) ensures that each memcpy copies at most half
++   of the buffer so that source and destination ranges are non-overlapping. This prevents memcpy-param-overlap and
++   the undefined behavior that led to out-of-bounds/heap corruption. This candidate differs from other variants by
++   using the explicit ceil(size/2) form. */
+ /*
+  * Generate a 6-character (+ nul) pass name string
+  * FIXME: allow translation of "random".

@@ -1,0 +1,15 @@
+diff --git a/src/pr.c b/src/pr.c
+index 20e863760..963fe768b 100644
+--- a/src/pr.c
++++ b/src/pr.c
+@@ -1232,8 +1232,8 @@ init_parameters (int number_of_files)
+           use_col_separator = true;
+         }
+       /* It's rather pointless to define a TAB separator with column
+-         alignment */
+-      else if (!join_lines && *col_sep_string == '\t')
++         alignment */ 
++      else if (!join_lines && *col_sep_string == '\t' && col_sep_length == 1 /* ensure single-char separator to avoid OOB reads */)
+         col_sep_string = column_separator;
+ 
+       truncate_lines = true;

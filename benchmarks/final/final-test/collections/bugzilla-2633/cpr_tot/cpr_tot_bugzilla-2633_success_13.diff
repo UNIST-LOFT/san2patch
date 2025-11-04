@@ -1,0 +1,28 @@
+diff --git a/tools/tiff2ps.c b/tools/tiff2ps.c
+index ae296e91..75295497 100644
+--- a/tools/tiff2ps.c
++++ b/tools/tiff2ps.c
+@@ -2437,8 +2437,8 @@ PSDataColorContig(FILE* fd, TIFF* tif, uint32 w, uint32 h, int nc)
+ 	int breaklen = MAXLINE, es = samplesperpixel - nc;
+ 	tsize_t cc;
+ 	unsigned char *tf_buf;
+-	unsigned char *cp, c;
+-
++	unsigned char *cp, c; 
++ if (tf_bytesperrow == 0 || tf_bytesperrow < (size_t)samplesperpixel /* ensure at least one full pixel per scanline */) return;
+ 	(void) w;
+ 	tf_buf = (unsigned char *) _TIFFmalloc(tf_bytesperrow);
+ 	if (tf_buf == NULL) {
+@@ -2493,7 +2493,11 @@ PSDataColorContig(FILE* fd, TIFF* tif, uint32 w, uint32 h, int nc)
+ 	_TIFFfree((char *) tf_buf);
+ }
+ 
+-void
++/* Rationale: This guard ensures the computed tf_bytesperrow is non-zero and
++   at least large enough to hold one full pixel (samplesperpixel). It prevents
++   the per-pixel loops from accessing bytes beyond the allocated scanline
++   buffer when tf_bytesperrow is incorrectly small. The comment above explains
++   the intent. */void
+ PSDataColorSeparate(FILE* fd, TIFF* tif, uint32 w, uint32 h, int nc)
+ {
+ 	uint32 row;

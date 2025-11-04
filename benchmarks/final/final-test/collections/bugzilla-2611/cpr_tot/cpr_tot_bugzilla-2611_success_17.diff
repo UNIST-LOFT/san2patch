@@ -1,0 +1,23 @@
+diff --git a/libtiff/tif_ojpeg.c b/libtiff/tif_ojpeg.c
+index 1ccc3f9b..2f2e94d6 100644
+--- a/libtiff/tif_ojpeg.c
++++ b/libtiff/tif_ojpeg.c
+@@ -798,7 +798,6 @@ OJPEGDecode(TIFF* tif, uint8* buf, tmsize_t cc, uint16 s)
+ 	}
+ 	return(1);
+ }
+-
+ static int
+ OJPEGDecodeRaw(TIFF* tif, uint8* buf, tmsize_t cc)
+ {
+@@ -811,8 +810,8 @@ OJPEGDecodeRaw(TIFF* tif, uint8* buf, tmsize_t cc)
+ 	uint8* ocr;
+ 	uint8* p;
+ 	uint32 q;
+-	uint8* r;
+-	uint8 sx,sy;
++	uint8* r; 
++	uint8 sx,sy; if (sp==NULL || sp->bytes_per_line==0 || tif->tif_scanlinesize==0) return -1;
+ 	if (cc%sp->bytes_per_line!=0)
+ 	{
+ 		TIFFErrorExt(tif->tif_clientdata,module,"Fractional scanline not read");

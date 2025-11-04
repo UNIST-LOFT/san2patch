@@ -1,0 +1,31 @@
+diff --git a/libtiff/tif_ojpeg.c b/libtiff/tif_ojpeg.c
+index 1ccc3f9b..fee01b35 100644
+--- a/libtiff/tif_ojpeg.c
++++ b/libtiff/tif_ojpeg.c
+@@ -798,7 +798,6 @@ OJPEGDecode(TIFF* tif, uint8* buf, tmsize_t cc, uint16 s)
+ 	}
+ 	return(1);
+ }
+-
+ static int
+ OJPEGDecodeRaw(TIFF* tif, uint8* buf, tmsize_t cc)
+ {
+@@ -811,8 +810,8 @@ OJPEGDecodeRaw(TIFF* tif, uint8* buf, tmsize_t cc)
+ 	uint8* ocr;
+ 	uint8* p;
+ 	uint32 q;
+-	uint8* r;
+-	uint8 sx,sy;
++	uint8* r; 
++	uint8 sx,sy; if ((sp == NULL || sp->bytes_per_line == 0 || sp->components == 0) && (TIFFErrorExt(tif->tif_clientdata,module,"Invalid OJPEG metadata: zero or missing bytes_per_line/components"),1)) return -1;
+ 	if (cc%sp->bytes_per_line!=0)
+ 	{
+ 		TIFFErrorExt(tif->tif_clientdata,module,"Fractional scanline not read");
+@@ -854,6 +853,7 @@ OJPEGDecodeRaw(TIFF* tif, uint8* buf, tmsize_t cc)
+ 	return(1);
+ }
+ 
++/* Rationale: Added a guard to ensure sp is non-NULL and that bytes_per_line and components are non-zero before any use as divisors. The TIFFErrorExt call is invoked when invalid metadata is detected and the function returns early. This prevents divide/modulo by zero later. */
+ static int
+ OJPEGDecodeScanlines(TIFF* tif, uint8* buf, tmsize_t cc)
+ {

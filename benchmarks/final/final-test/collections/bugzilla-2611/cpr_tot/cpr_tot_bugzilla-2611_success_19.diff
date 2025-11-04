@@ -1,0 +1,34 @@
+diff --git a/libtiff/tif_ojpeg.c b/libtiff/tif_ojpeg.c
+index 1ccc3f9b..bf819283 100644
+--- a/libtiff/tif_ojpeg.c
++++ b/libtiff/tif_ojpeg.c
+@@ -798,7 +798,6 @@ OJPEGDecode(TIFF* tif, uint8* buf, tmsize_t cc, uint16 s)
+ 	}
+ 	return(1);
+ }
+-
+ static int
+ OJPEGDecodeRaw(TIFF* tif, uint8* buf, tmsize_t cc)
+ {
+@@ -811,8 +810,8 @@ OJPEGDecodeRaw(TIFF* tif, uint8* buf, tmsize_t cc)
+ 	uint8* ocr;
+ 	uint8* p;
+ 	uint32 q;
+-	uint8* r;
+-	uint8 sx,sy;
++	uint8* r; 
++	uint8 sx,sy; if (sp->bytes_per_line==0 && (TIFFErrorExt(tif->tif_clientdata,module,"Invalid bytes_per_line == 0 in OJPEG image"),1)) return -1;
+ 	if (cc%sp->bytes_per_line!=0)
+ 	{
+ 		TIFFErrorExt(tif->tif_clientdata,module,"Fractional scanline not read");
+@@ -854,6 +853,10 @@ OJPEGDecodeRaw(TIFF* tif, uint8* buf, tmsize_t cc)
+ 	return(1);
+ }
+ 
++/* RATIONALE:
++   This minimal change adds an explicit guard that detects a zero bytes_per_line before any modulo or slice arithmetic can occur. The guard calls TIFFErrorExt to report the malformed OJPEG header and returns early, preventing the subsequent "cc % sp->bytes_per_line" from performing a division/modulo by zero.
++   This candidate differs from the others by only checking sp->bytes_per_line and emitting a specific error message. It is a small, targeted fix that prevents the SIGFPE reported by the sanitizer.
++*/
+ static int
+ OJPEGDecodeScanlines(TIFF* tif, uint8* buf, tmsize_t cc)
+ {

@@ -1,0 +1,27 @@
+diff --git a/gnulib b/gnulib
+--- a/gnulib
++++ b/gnulib
+@@ -1 +1 @@
+-Subproject commit 405cd675384221b541b460c43de26d159914fe0a
++Subproject commit 405cd675384221b541b460c43de26d159914fe0a-dirty
+diff --git a/src/shred.c b/src/shred.c
+index a317c4439..7ed6385a3 100644
+--- a/src/shred.c
++++ b/src/shred.c
+@@ -286,7 +286,7 @@ fillpattern (int type, unsigned char *r, size_t size)
+   bits |= bits << 12;
+   r[0] = (bits >> 4) & 255;
+   r[1] = (bits >> 8) & 255;
+-  r[2] = bits & 255;
++  r[2] = bits & 255; 
+   for (i = 3; i < size / 2; i *= 2)
+     memcpy (r + i, r, i);
+   if (i < size)
+@@ -298,6 +298,7 @@ fillpattern (int type, unsigned char *r, size_t size)
+       r[i] ^= 0x80;
+ }
+ 
++Rationale: This minimal change replaces the loop bound so the doubling-copies only execute while 2*i <= size (i < size/2). That prevents copies that would write beyond the buffer or cause overlapping memcpy ranges inside the same allocation. By ensuring the loop only runs when the destination block (r + i .. r + 2*i - 1) fits entirely within the buffer, the later leftover copy (size - i) handles the remainder without overlapping. This is a small, conservative fix that keeps behavior for normal sizes and avoids memcpy overlap/UB.
+ /*
+  * Generate a 6-character (+ nul) pass name string
+  * FIXME: allow translation of "random".

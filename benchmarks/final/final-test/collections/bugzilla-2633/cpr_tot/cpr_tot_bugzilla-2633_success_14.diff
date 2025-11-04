@@ -1,0 +1,23 @@
+diff --git a/tools/tiff2ps.c b/tools/tiff2ps.c
+index ae296e91..0d804e1a 100644
+--- a/tools/tiff2ps.c
++++ b/tools/tiff2ps.c
+@@ -2437,8 +2437,8 @@ PSDataColorContig(FILE* fd, TIFF* tif, uint32 w, uint32 h, int nc)
+ 	int breaklen = MAXLINE, es = samplesperpixel - nc;
+ 	tsize_t cc;
+ 	unsigned char *tf_buf;
+-	unsigned char *cp, c;
+-
++	unsigned char *cp, c; 
++ if (((uint64_t)TIFFScanlineSize64(tif) == 0) || ((uint64_t)TIFFScanlineSize64(tif) > (uint64_t)(SIZE_MAX - 1)) || (tf_bytesperrow = (size_t)TIFFScanlineSize64(tif) + 1, 0)) return;
+ 	(void) w;
+ 	tf_buf = (unsigned char *) _TIFFmalloc(tf_bytesperrow);
+ 	if (tf_buf == NULL) {
+@@ -2492,7 +2492,6 @@ PSDataColorContig(FILE* fd, TIFF* tif, uint32 w, uint32 h, int nc)
+ 	}
+ 	_TIFFfree((char *) tf_buf);
+ }
+-
+ void
+ PSDataColorSeparate(FILE* fd, TIFF* tif, uint32 w, uint32 h, int nc)
+ {
