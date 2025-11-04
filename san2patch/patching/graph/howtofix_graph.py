@@ -155,7 +155,7 @@ def generate_howtofix_graph(
                 select_ids = np.random.choice(
                     ids,
                     size=select_size,
-                    p=ps,
+                    p=None,
                     replace=False,
                 ).tolist()
             state.fix_strategy_final.extend([strategies[i] for i in select_ids])

@@ -411,55 +411,6 @@ def generate_runpatch_graph(
         return BuildTestState(ret_code=ret_code, err_msg=err_msg)
 
     @traceable(type="validator")
-    def test_build(
-        state: RunPatchState,
-        genpatch_state: GenPatchState,
-        genpatch_id: int,
-        pv: FinalTestValidator,
-    ) -> BuildTestState:
-        ret_code, err_msg = pv.build_test()
-        if err_msg is None:
-            err_msg = ""
-
-        if not ret_code:
-            pv.logger.warning("Build test failed.")
-            genpatch_state.patch_result = state.patch_success[genpatch_id] = (
-                ExperimentResEnum.BUILD_FAILED.value
-            )
-
-            original_functions = [
-                loc.original_code
-                for loc in genpatch_state.fix_strategy.fix_location.locations
-            ]
-            patched_functions = [
-                loc.patched_code
-                for loc in genpatch_state.fix_strategy.fix_location.locations
-            ]
-
-            fix_build_state = FixBuildState(
-                build_ret=ret_code,
-                build_err_msg=err_msg,
-                original_functions=original_functions,
-                patched_functions=patched_functions,
-            )
-
-            try:
-                fixed_res: FixErrorModel = ask(
-                    llm, FixBuildErrorPrompt, fix_build_state
-                )
-            except Exception as e:
-                logger.warning(f"Error in fixing build error: {e}. skipping...")
-            else:
-                for idx, patched_function in enumerate(
-                    fixed_res.fixed_patched_functions
-                ):
-                    genpatch_state.fix_strategy.fix_location.locations[
-                        idx
-                    ].patched_code = patched_function
-
-        return BuildTestState(ret_code=ret_code, err_msg=err_msg)
-
-    @traceable(type="validator")
     def test_vulnerability(
         state: RunPatchState,
         genpatch_state: GenPatchState,
@@ -523,7 +474,7 @@ def generate_runpatch_graph(
 
             start_id = len(state.patch_success)
             state.patch_success.extend([""] * len(branched_genpatch_states))
-            ret_patch = ret_vuln = None
+            ret_patch = ret_build = ret_vuln = None
 
             for _id, genpatch_state in enumerate(branched_genpatch_states):
                 genpatch_id = start_id + _id
@@ -543,6 +494,14 @@ def generate_runpatch_graph(
                     )
                     # If patch application failed, break out from retry
                     if not ret_patch.ret_code:
+                        break
+                    
+                    try:
+                        ret_build: BuildTestState = test_build(state, genpatch_state, genpatch_id, pv)
+                        if not ret_build.ret_code:
+                            continue
+                    except Exception as e:
+                        logger.error(f"Error in build test: {e}")
                         break
 
                     # Directly run vulnerability test only (exploit test)

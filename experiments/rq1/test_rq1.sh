@@ -8,4 +8,4 @@ python ./run.py Final run-patch 1 --experiment-name usenix_rq1_test_cot --retry-
 python ./run.py Final run-patch 1 --experiment-name usenix_rq1_test_no_context --retry-cnt 1 --max-retry-cnt 1 --model gpt-4o --version no_context --vuln-ids "CVE-2016-1839"
 
 # tot
-python ./run.py Final run-patch 1 --experiment-name usenix_rq1_test_tot --select-method greedy --retry-cnt 50 --max-retry-cnt 50 --model gpt-5-nano --version tot --vuln-ids "CVE-2016-1839"
+python ./run.py Final run-patch 1 --experiment-name usenix_rq1_test_tot --retry-cnt 50 --max-retry-cnt 50 --model gpt-5-nano --version tot --vuln-ids "CVE-2016-1839"
