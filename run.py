@@ -411,13 +411,14 @@ def run_patch(
     print(text2art(experiment_name))
     print("############################################")
 
+    input_vuln_ids = []
     if vuln_ids is not None:
         if vuln_ids == "san2vuln":
-            vuln_ids = vuln_id_list["san2vuln"]
+            input_vuln_ids = vuln_id_list["san2vuln"].split(',')
         elif vuln_ids == "vulnloc":
-            vuln_ids = vuln_id_list["vulnloc"]
-
-        vuln_ids = vuln_ids.split(",")
+            input_vuln_ids = vuln_id_list["vulnloc"].split(',')
+        else:
+            input_vuln_ids = vuln_ids.split(",")
 
     dataset: FinalTestDataset = ctx.obj["dataset_instance"]
 
@@ -428,33 +429,42 @@ def run_patch(
     logger.info(f"Starting patching in test {dataset.name}...")
 
     args = []
-
     skip_list = dataset.get_skip(dataset.gen_diff_dir)
-    for _, _, files in track(
-        os.walk(dataset.vuln_dir), description="Processing patching"
-    ):
-        for file in files:
-            if file.endswith(".json"):
-                vuln_id = file.split(".")[0]
+    
+    if input_vuln_ids:
+        logger.info("Processing vuln_ids in the specified order...")
+        vuln_id_source = track(input_vuln_ids, description="Preparing specified vulnerabilities")
+    else:
+        logger.info("Processing all vulnerabilities found in the directory...")
+        all_files = []
+        for _, _, files in os.walk(dataset.vuln_dir):
+            for file in files:
+                if file.endswith(".json"):
+                    all_files.append(file)
+        vuln_id_source = track(all_files, description="Processing all vulnerabilities")
 
-                if vuln_id in skip_list:
-                    logger.warning(f"Skipping {vuln_id} due to previous error")
-                    continue
+    for item in vuln_id_source:
+        vuln_id = item.split(".")[0]
 
-                if vuln_ids is not None and vuln_id not in vuln_ids:
-                    continue
+        if vuln_id in skip_list:
+            logger.warning(f"Skipping {vuln_id} due to previous error")
+            continue
 
-                filename = os.path.join(dataset.gen_diff_dir, vuln_id, "res.txt")
-                if os.path.exists(filename):
-                    with open(filename, "r") as f:
-                        res = f.read()
-                    if "success" in res:
-                        logger.warning(
-                            f"Skipping {vuln_id} because it was already successful"
-                        )
-                        continue
+        if input_vuln_ids and vuln_id not in input_vuln_ids:
+            continue
 
-                args.append(file.split(".")[0])
+        filename = os.path.join(dataset.gen_diff_dir, vuln_id, "res.txt")
+        if os.path.exists(filename):
+            with open(filename, "r") as f:
+                res = f.read()
+            if "success" in res:
+                logger.warning(
+                    f"Skipping {vuln_id} because it was already successful"
+                )
+                continue
+        
+        args.append(vuln_id)
+
 
     if model == "gpt-4o":
         model_class = OpenAIGPT4oPatcher
